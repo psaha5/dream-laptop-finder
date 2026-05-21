@@ -62,15 +62,31 @@ public class FindLaptop extends JFrame {
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setMinimumSize(new Dimension(1024, 768));
 
-        JPanel contentPane = new JPanel(new BorderLayout());
-        contentPane.setBackground(new Color(9, 13, 26));
+        JPanel contentPane = new JPanel(new BorderLayout()) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                GradientPaint gp = new GradientPaint(
+                    0, 0, new Color(238, 242, 255),
+                    getWidth(), getHeight(), new Color(250, 245, 255)
+                );
+                g2.setPaint(gp);
+                g2.fillRect(0, 0, getWidth(), getHeight());
+                g2.setColor(new Color(199, 210, 254, 120));
+                g2.fillOval(getWidth() / 3, -100, 500, 500);
+                g2.setColor(new Color(243, 207, 243, 100));
+                g2.fillOval(getWidth() - 300, getHeight() - 400, 450, 450);
+                g2.dispose();
+            }
+        };
 
         JPanel sidebar = createSidebarPanel();
         contentPane.add(sidebar, BorderLayout.WEST);
 
         cardLayout = new CardLayout();
         mainWorkspace = new JPanel(cardLayout);
-        mainWorkspace.setBackground(new Color(9, 13, 26));
+        mainWorkspace.setOpaque(false);
 
         JPanel searchResultsScreen = createSearchResultsScreen();
         JPanel checkoutScreen = createCheckoutScreen();
@@ -96,11 +112,19 @@ public class FindLaptop extends JFrame {
     }
 
     private JPanel createSidebarPanel() {
-        JPanel sidebar = new JPanel();
+        JPanel sidebar = new JPanel(new BorderLayout()) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(new Color(255, 255, 255, 110));
+                g2.fillRect(0, 0, getWidth(), getHeight());
+                g2.dispose();
+            }
+        };
         sidebar.setPreferredSize(new Dimension(340, 1080));
-        sidebar.setBackground(new Color(15, 23, 42));
-        sidebar.setBorder(BorderFactory.createMatteBorder(0, 0, 0, 1, new Color(30, 41, 59)));
-        sidebar.setLayout(new BorderLayout());
+        sidebar.setOpaque(false);
+        sidebar.setBorder(BorderFactory.createMatteBorder(0, 0, 0, 1, new Color(255, 255, 255, 160)));
 
         JPanel headerPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 15, 15));
         headerPanel.setOpaque(false);
@@ -112,10 +136,10 @@ public class FindLaptop extends JFrame {
         brandTextPanel.setOpaque(false);
         JLabel brandNameLabel = new JLabel("DREAMFINDER.AI");
         brandNameLabel.setFont(new Font("SansSerif", Font.BOLD, 18));
-        brandNameLabel.setForeground(Color.WHITE);
+        brandNameLabel.setForeground(new Color(15, 23, 42));
         JLabel brandSubLabel = new JLabel("Premium Matcher v1.0");
         brandSubLabel.setFont(new Font("SansSerif", Font.PLAIN, 12));
-        brandSubLabel.setForeground(new Color(148, 163, 184));
+        brandSubLabel.setForeground(new Color(71, 85, 105));
         brandTextPanel.add(brandNameLabel);
         brandTextPanel.add(brandSubLabel);
         headerPanel.add(brandTextPanel);
@@ -123,7 +147,7 @@ public class FindLaptop extends JFrame {
         sidebar.add(headerPanel, BorderLayout.NORTH);
 
         JPanel scrollContent = new JPanel();
-        scrollContent.setBackground(new Color(15, 23, 42));
+        scrollContent.setOpaque(false);
         scrollContent.setLayout(new BoxLayout(scrollContent, BoxLayout.Y_AXIS));
         scrollContent.setBorder(new EmptyBorder(10, 15, 10, 15));
 
@@ -185,8 +209,8 @@ public class FindLaptop extends JFrame {
         JScrollPane scrollPane = new JScrollPane(scrollContent);
         scrollPane.setBorder(null);
         scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
-        scrollPane.setBackground(new Color(15, 23, 42));
-        scrollPane.getViewport().setBackground(new Color(15, 23, 42));
+        scrollPane.setOpaque(false);
+        scrollPane.getViewport().setOpaque(false);
         sidebar.add(scrollPane, BorderLayout.CENTER);
 
         JPanel actionPanel = new JPanel(new GridLayout(2, 1, 0, 10));
@@ -247,7 +271,7 @@ public class FindLaptop extends JFrame {
 
     private JPanel createSearchResultsScreen() {
         JPanel panel = new JPanel(new BorderLayout());
-        panel.setBackground(new Color(9, 13, 26));
+        panel.setOpaque(false);
         panel.setBorder(new EmptyBorder(30, 40, 30, 40));
 
         JPanel topHeader = new JPanel(new BorderLayout());
@@ -256,30 +280,49 @@ public class FindLaptop extends JFrame {
 
         matchesHeaderLabel = new JLabel("Found 0 matches for your specifications");
         matchesHeaderLabel.setFont(new Font("SansSerif", Font.BOLD, 26));
-        matchesHeaderLabel.setForeground(Color.WHITE);
+        matchesHeaderLabel.setForeground(new Color(15, 23, 42));
         topHeader.add(matchesHeaderLabel, BorderLayout.WEST);
 
-        budgetRangeBadge = new JLabel("💳 Middle Budget Range");
+        budgetRangeBadge = new JLabel("💳 Middle Budget Range") {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(getBackground());
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 10, 10);
+                super.paintComponent(g);
+                g2.dispose();
+            }
+        };
         budgetRangeBadge.setFont(new Font("SansSerif", Font.BOLD, 13));
-        budgetRangeBadge.setForeground(Color.WHITE);
-        budgetRangeBadge.setOpaque(true);
-        budgetRangeBadge.setBackground(new Color(79, 70, 229));
+        budgetRangeBadge.setOpaque(false);
+        budgetRangeBadge.setBackground(new Color(224, 231, 255, 200));
+        budgetRangeBadge.setForeground(new Color(67, 56, 202));
         budgetRangeBadge.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(99, 102, 241), 1),
+                BorderFactory.createLineBorder(new Color(99, 102, 241, 100), 1),
                 new EmptyBorder(6, 15, 6, 15)
         ));
         topHeader.add(budgetRangeBadge, BorderLayout.EAST);
 
         panel.add(topHeader, BorderLayout.NORTH);
 
-        resultsGrid = new JPanel();
-        resultsGrid.setBackground(new Color(9, 13, 26));
+        resultsGrid = new JPanel() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                if (getBackground() != null && getBackground().getAlpha() > 0) {
+                    g.setColor(getBackground());
+                    g.fillRect(0, 0, getWidth(), getHeight());
+                }
+                super.paintComponent(g);
+            }
+        };
+        resultsGrid.setOpaque(false);
         resultsGrid.setLayout(new GridBagLayout());
 
         JScrollPane scrollPane = new JScrollPane(resultsGrid);
         scrollPane.setBorder(null);
-        scrollPane.setBackground(new Color(9, 13, 26));
-        scrollPane.getViewport().setBackground(new Color(9, 13, 26));
+        scrollPane.setOpaque(false);
+        scrollPane.getViewport().setOpaque(false);
         panel.add(scrollPane, BorderLayout.CENTER);
 
         return panel;
@@ -287,7 +330,7 @@ public class FindLaptop extends JFrame {
 
     private JPanel createCheckoutScreen() {
         JPanel panel = new JPanel(new GridBagLayout());
-        panel.setBackground(new Color(9, 13, 26));
+        panel.setOpaque(false);
 
         RoundedPanel formPanel = new RoundedPanel(new GridBagLayout());
         formPanel.setPreferredSize(new Dimension(600, 620));
@@ -301,20 +344,20 @@ public class FindLaptop extends JFrame {
         gbc.gridy = 0;
         JLabel title = new JLabel("SaaS Checkout Referral Portal");
         title.setFont(new Font("SansSerif", Font.BOLD, 28));
-        title.setForeground(Color.WHITE);
+        title.setForeground(new Color(15, 23, 42));
         title.setHorizontalAlignment(SwingConstants.CENTER);
         formPanel.add(title, gbc);
 
         gbc.gridy = 1;
         checkoutProductLabel = new JLabel("Product: Laptop Custom Configuration");
-        checkoutProductLabel.setFont(new Font("SansSerif", Font.PLAIN, 15));
-        checkoutProductLabel.setForeground(new Color(168, 85, 247));
+        checkoutProductLabel.setFont(new Font("SansSerif", Font.BOLD, 15));
+        checkoutProductLabel.setForeground(new Color(109, 40, 217));
         checkoutProductLabel.setHorizontalAlignment(SwingConstants.CENTER);
         formPanel.add(checkoutProductLabel, gbc);
 
         gbc.gridy = 2;
         JSeparator sep = new JSeparator();
-        sep.setForeground(new Color(51, 65, 85));
+        sep.setForeground(new Color(226, 232, 240));
         formPanel.add(sep, gbc);
 
         gbc.gridy = 3;
@@ -334,8 +377,8 @@ public class FindLaptop extends JFrame {
         gbc.gridy = 6;
         RoundedButton cancelBtn = new RoundedButton("RETURN TO CONFIGURATOR");
         cancelBtn.setPreferredSize(new Dimension(500, 44));
-        cancelBtn.color1 = new Color(71, 85, 105);
-        cancelBtn.color2 = new Color(100, 116, 139);
+        cancelBtn.color1 = new Color(100, 116, 139);
+        cancelBtn.color2 = new Color(71, 85, 105);
         cancelBtn.addActionListener(e -> cardLayout.show(mainWorkspace, "RESULTS"));
         formPanel.add(cancelBtn, gbc);
 
@@ -345,7 +388,7 @@ public class FindLaptop extends JFrame {
 
     private JPanel createSuccessScreen() {
         JPanel panel = new JPanel(new GridBagLayout());
-        panel.setBackground(new Color(9, 13, 26));
+        panel.setOpaque(false);
 
         RoundedPanel messagePanel = new RoundedPanel(new GridBagLayout());
         messagePanel.setPreferredSize(new Dimension(700, 520));
@@ -359,21 +402,21 @@ public class FindLaptop extends JFrame {
         gbc.gridy = 0;
         JLabel checkIcon = new JLabel("✓");
         checkIcon.setFont(new Font("SansSerif", Font.BOLD, 82));
-        checkIcon.setForeground(new Color(34, 197, 94));
+        checkIcon.setForeground(new Color(22, 163, 74));
         checkIcon.setHorizontalAlignment(SwingConstants.CENTER);
         messagePanel.add(checkIcon, gbc);
 
         gbc.gridy = 1;
         successTitleLabel = new JLabel("Order Submitted Successfully");
         successTitleLabel.setFont(new Font("SansSerif", Font.BOLD, 26));
-        successTitleLabel.setForeground(Color.WHITE);
+        successTitleLabel.setForeground(new Color(15, 23, 42));
         successTitleLabel.setHorizontalAlignment(SwingConstants.CENTER);
         messagePanel.add(successTitleLabel, gbc);
 
         gbc.gridy = 2;
         successDetailsLabel = new JLabel("Details");
         successDetailsLabel.setFont(new Font("SansSerif", Font.PLAIN, 15));
-        successDetailsLabel.setForeground(new Color(148, 163, 184));
+        successDetailsLabel.setForeground(new Color(71, 85, 105));
         successDetailsLabel.setHorizontalAlignment(SwingConstants.CENTER);
         messagePanel.add(successDetailsLabel, gbc);
 
@@ -459,7 +502,12 @@ public class FindLaptop extends JFrame {
 
         if (maxPrice < 100) {
             budgetRangeBadge.setText("⚠️ Lower Range Referral Program Active");
-            budgetRangeBadge.setBackground(new Color(220, 38, 38));
+            budgetRangeBadge.setBackground(new Color(254, 226, 226, 200));
+            budgetRangeBadge.setForeground(new Color(220, 38, 38));
+            budgetRangeBadge.setBorder(BorderFactory.createCompoundBorder(
+                    BorderFactory.createLineBorder(new Color(239, 68, 68, 100), 1),
+                    new EmptyBorder(6, 15, 6, 15)
+            ));
             matchesHeaderLabel.setText("Lower Range Special Support referral");
             showLowerRangeReferralView();
             return;
@@ -467,13 +515,28 @@ public class FindLaptop extends JFrame {
 
         if (maxPrice >= 100 && maxPrice <= 500) {
             budgetRangeBadge.setText("💳 Middle Budget Range ($100 - $500)");
-            budgetRangeBadge.setBackground(new Color(37, 99, 235));
+            budgetRangeBadge.setBackground(new Color(224, 231, 255, 200));
+            budgetRangeBadge.setForeground(new Color(67, 56, 202));
+            budgetRangeBadge.setBorder(BorderFactory.createCompoundBorder(
+                    BorderFactory.createLineBorder(new Color(99, 102, 241, 100), 1),
+                    new EmptyBorder(6, 15, 6, 15)
+            ));
         } else if (maxPrice >= 501 && maxPrice <= 1000) {
             budgetRangeBadge.setText("💎 High Budget Range ($501 - $1000)");
-            budgetRangeBadge.setBackground(new Color(147, 51, 234));
+            budgetRangeBadge.setBackground(new Color(243, 232, 255, 200));
+            budgetRangeBadge.setForeground(new Color(107, 33, 168));
+            budgetRangeBadge.setBorder(BorderFactory.createCompoundBorder(
+                    BorderFactory.createLineBorder(new Color(168, 85, 247, 100), 1),
+                    new EmptyBorder(6, 15, 6, 15)
+            ));
         } else {
             budgetRangeBadge.setText("👑 Premium Budget Range (> $1000)");
-            budgetRangeBadge.setBackground(new Color(5, 150, 105));
+            budgetRangeBadge.setBackground(new Color(209, 250, 229, 200));
+            budgetRangeBadge.setForeground(new Color(6, 95, 70));
+            budgetRangeBadge.setBorder(BorderFactory.createCompoundBorder(
+                    BorderFactory.createLineBorder(new Color(16, 185, 129, 100), 1),
+                    new EmptyBorder(6, 15, 6, 15)
+            ));
         }
 
         List<Laptop> matches = registry.findMatch(activeDreamQuery);
@@ -506,8 +569,7 @@ public class FindLaptop extends JFrame {
     }
 
     private void animateResultsFlash() {
-        Color flashColor = new Color(30, 41, 59);
-        Color baseColor = new Color(9, 13, 26);
+        Color baseColor = new Color(255, 255, 255, 0);
         long startTime = System.currentTimeMillis();
         long duration = 300;
         javax.swing.Timer timer = new javax.swing.Timer(15, null);
@@ -520,10 +582,8 @@ public class FindLaptop extends JFrame {
             } else {
                 float pct = (float) elapsed / duration;
                 float inversePct = 1.0f - pct;
-                int r = (int) (baseColor.getRed() * pct + flashColor.getRed() * inversePct);
-                int g = (int) (baseColor.getGreen() * pct + flashColor.getGreen() * inversePct);
-                int b = (int) (baseColor.getBlue() * pct + flashColor.getBlue() * inversePct);
-                resultsGrid.setBackground(new Color(r, g, b));
+                int alpha = (int) (160 * inversePct);
+                resultsGrid.setBackground(new Color(255, 255, 255, alpha));
                 resultsGrid.repaint();
             }
         });
@@ -550,14 +610,14 @@ public class FindLaptop extends JFrame {
         subGbc.gridy = 0;
         JLabel title = new JLabel("⚠️ Special Budget Assist referral Required");
         title.setFont(new Font("SansSerif", Font.BOLD, 24));
-        title.setForeground(new Color(239, 68, 68));
+        title.setForeground(new Color(220, 38, 38));
         title.setHorizontalAlignment(SwingConstants.CENTER);
         alertPanel.add(title, subGbc);
 
         subGbc.gridy = 1;
         JLabel desc = new JLabel("<html><center>Since your budget maximum is in our <b>Lower Range (< $100)</b>, we do not inventory catalog models at this price level.<br>However, our technician will contact you directly to evaluate refurbished stocks or apply UNE student support subsidies!</center></html>");
         desc.setFont(new Font("SansSerif", Font.PLAIN, 15));
-        desc.setForeground(new Color(226, 232, 240));
+        desc.setForeground(new Color(71, 85, 105));
         desc.setHorizontalAlignment(SwingConstants.CENTER);
         alertPanel.add(desc, subGbc);
 
@@ -598,14 +658,25 @@ public class FindLaptop extends JFrame {
         titleBar.setOpaque(false);
         JLabel name = new JLabel(laptop.getLaptopName());
         name.setFont(new Font("SansSerif", Font.BOLD, 19));
-        name.setForeground(Color.WHITE);
+        name.setForeground(new Color(15, 23, 42));
         titleBar.add(name);
 
-        JLabel idBadge = new JLabel("ID: " + laptop.getLaptopIdentifier());
+        JLabel idBadge = new JLabel("ID: " + laptop.getLaptopIdentifier()) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(new Color(224, 231, 255, 180));
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 6, 6);
+                super.paintComponent(g);
+                g2.dispose();
+            }
+        };
         idBadge.setFont(new Font("SansSerif", Font.BOLD, 11));
-        idBadge.setForeground(new Color(99, 102, 241));
+        idBadge.setForeground(new Color(67, 56, 202));
+        idBadge.setOpaque(false);
         idBadge.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(99, 102, 241), 1),
+                BorderFactory.createLineBorder(new Color(99, 102, 241, 80), 1),
                 new EmptyBorder(2, 6, 2, 6)
         ));
         titleBar.add(idBadge);
@@ -621,11 +692,22 @@ public class FindLaptop extends JFrame {
             }
         }
         if (!isPerfect) {
-            JLabel altBadge = new JLabel("✨ Recommended Alternative");
+            JLabel altBadge = new JLabel("✨ Recommended Alternative") {
+                @Override
+                protected void paintComponent(Graphics g) {
+                    Graphics2D g2 = (Graphics2D) g.create();
+                    g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                    g2.setColor(new Color(255, 251, 235, 200));
+                    g2.fillRoundRect(0, 0, getWidth(), getHeight(), 6, 6);
+                    super.paintComponent(g);
+                    g2.dispose();
+                }
+            };
             altBadge.setFont(new Font("SansSerif", Font.BOLD, 11));
-            altBadge.setForeground(new Color(245, 158, 11));
+            altBadge.setForeground(new Color(180, 83, 9));
+            altBadge.setOpaque(false);
             altBadge.setBorder(BorderFactory.createCompoundBorder(
-                    BorderFactory.createLineBorder(new Color(245, 158, 11), 1),
+                    BorderFactory.createLineBorder(new Color(245, 158, 11, 100), 1),
                     new EmptyBorder(2, 6, 2, 6)
             ));
             titleBar.add(altBadge);
@@ -635,7 +717,7 @@ public class FindLaptop extends JFrame {
 
         JLabel desc = new JLabel(laptop.getDescription());
         desc.setFont(new Font("SansSerif", Font.PLAIN, 14));
-        desc.setForeground(new Color(148, 163, 184));
+        desc.setForeground(new Color(71, 85, 105));
         details.add(desc);
 
         JPanel specsPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
@@ -662,7 +744,7 @@ public class FindLaptop extends JFrame {
 
         JLabel price = new JLabel("$" + String.format("%.2f", laptop.getPrice()));
         price.setFont(new Font("SansSerif", Font.BOLD, 24));
-        price.setForeground(new Color(34, 197, 94));
+        price.setForeground(new Color(5, 150, 105));
         price.setHorizontalAlignment(SwingConstants.RIGHT);
         actions.add(price, gbc);
 
@@ -675,7 +757,7 @@ public class FindLaptop extends JFrame {
             isCustomCheckout = false;
             isLowerRangeCheckout = false;
             checkoutProductLabel.setText("Product: " + laptop.getLaptopName() + " (" + laptop.getLaptopIdentifier() + ")");
-            checkoutProductLabel.setForeground(new Color(6, 182, 212));
+            checkoutProductLabel.setForeground(new Color(8, 145, 178));
             cardLayout.show(mainWorkspace, "CHECKOUT");
         });
         actions.add(orderBtn, gbc);
@@ -760,7 +842,7 @@ public class FindLaptop extends JFrame {
         gbc.gridy = 1;
         JLabel desc = new JLabel("Unfortunately, none of our current catalog models match your specifications. Custom orders are built in our UNE laboratory.");
         desc.setFont(new Font("SansSerif", Font.PLAIN, 15));
-        desc.setForeground(new Color(148, 163, 184));
+        desc.setForeground(new Color(71, 85, 105));
         desc.setHorizontalAlignment(SwingConstants.CENTER);
         card.add(desc, gbc);
 
@@ -819,7 +901,7 @@ public class FindLaptop extends JFrame {
     private void submitOrder(Client client, Laptop laptop) {
         String safeName = client.name().replace(" ", "_");
         String filename = safeName + "_" + laptop.getLaptopIdentifier() + ".txt";
-        Path path = Path.of(filename);
+        Path path = Path.of("orders", filename);
 
         String lineToWrite = "Order details:\n\t" +
                 "Name: " + client.name() +
@@ -831,6 +913,7 @@ public class FindLaptop extends JFrame {
         }
 
         try {
+            Files.createDirectories(path.getParent());
             Files.writeString(path, lineToWrite);
             
             successTitleLabel.setText("Order Registered Successfully");
@@ -844,7 +927,7 @@ public class FindLaptop extends JFrame {
     private void submitLowerRangeInquiry(Client client, DreamLaptop query) {
         String safeName = client.name().replace(" ", "_");
         String filename = safeName + "_lower_range.txt";
-        Path path = Path.of(filename);
+        Path path = Path.of("orders", filename);
 
         String lineToWrite = "Lower Range Budget Inquiry:\n\t" +
                 "Name: " + client.name() +
@@ -854,6 +937,7 @@ public class FindLaptop extends JFrame {
                 "\n\n* Technician Assignment: Assessor/Technician will call this client within 24 hours to match lower-range/refurbished/student discount machines.";
 
         try {
+            Files.createDirectories(path.getParent());
             Files.writeString(path, lineToWrite);
             
             successTitleLabel.setText("Technician Call Scheduled");
@@ -877,17 +961,20 @@ public class FindLaptop extends JFrame {
             }
         };
         badge.setFont(new Font("SansSerif", Font.PLAIN, 12));
-        badge.setForeground(new Color(203, 213, 225));
+        badge.setForeground(new Color(51, 65, 85));
         badge.setOpaque(false);
-        badge.setBackground(new Color(51, 65, 85));
-        badge.setBorder(new EmptyBorder(3, 8, 3, 8));
+        badge.setBackground(new Color(226, 232, 240, 200));
+        badge.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(203, 213, 225, 150), 1),
+                new EmptyBorder(2, 8, 2, 8)
+        ));
         return badge;
     }
 
     private JLabel createSidebarHeader(String text) {
         JLabel label = new JLabel(text);
-        label.setFont(new Font("SansSerif", Font.BOLD, 12));
-        label.setForeground(new Color(99, 102, 241));
+        label.setFont(new Font("SansSerif", Font.BOLD, 11));
+        label.setForeground(new Color(79, 70, 229));
         label.setBorder(new EmptyBorder(15, 0, 5, 0));
         return label;
     }
@@ -898,7 +985,7 @@ public class FindLaptop extends JFrame {
         panel.setBorder(new EmptyBorder(5, 0, 5, 0));
         JLabel label = new JLabel(labelText);
         label.setFont(new Font("SansSerif", Font.PLAIN, 13));
-        label.setForeground(new Color(226, 232, 240));
+        label.setForeground(new Color(51, 65, 85));
         panel.add(label, BorderLayout.NORTH);
         panel.add(field, BorderLayout.CENTER);
         return panel;
@@ -913,37 +1000,39 @@ public class FindLaptop extends JFrame {
                     protected void paintComponent(Graphics g) {
                         Graphics2D g2 = (Graphics2D) g.create();
                         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                        g2.setColor(Color.WHITE);
+                        g2.setColor(new Color(71, 85, 105));
                         int[] xPoints = {getWidth() / 2 - 4, getWidth() / 2 + 4, getWidth() / 2};
                         int[] yPoints = {getHeight() / 2 - 2, getHeight() / 2 - 2, getHeight() / 2 + 3};
                         g2.fillPolygon(xPoints, yPoints, 3);
                         g2.dispose();
                     }
                 };
-                button.setBackground(new Color(30, 41, 59));
+                button.setBackground(new Color(255, 255, 255, 0));
                 button.setBorder(BorderFactory.createEmptyBorder());
                 button.setContentAreaFilled(false);
                 button.setFocusPainted(false);
                 return button;
             }
-            
+
             @Override
             public void paintCurrentValueBackground(Graphics g, Rectangle bounds, boolean hasFocus) {
-                g.setColor(new Color(30, 41, 59));
-                g.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setColor(new Color(255, 255, 255, 160));
+                g2.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
+                g2.dispose();
             }
         });
-        combo.setBackground(new Color(30, 41, 59));
-        combo.setForeground(Color.WHITE);
+        combo.setBackground(new Color(255, 255, 255, 160));
+        combo.setForeground(new Color(15, 23, 42));
         combo.setFont(new Font("SansSerif", Font.PLAIN, 13));
-        combo.setBorder(BorderFactory.createLineBorder(new Color(71, 85, 105)));
-        
+        combo.setBorder(BorderFactory.createLineBorder(new Color(203, 213, 225)));
+
         combo.setRenderer(new DefaultListCellRenderer() {
             @Override
             public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
                 super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
-                setBackground(isSelected ? new Color(79, 70, 229) : new Color(30, 41, 59));
-                setForeground(Color.WHITE);
+                setBackground(isSelected ? new Color(224, 231, 255) : Color.WHITE);
+                setForeground(isSelected ? new Color(67, 56, 202) : new Color(15, 23, 42));
                 setBorder(new EmptyBorder(5, 10, 5, 10));
                 return this;
             }
@@ -952,7 +1041,7 @@ public class FindLaptop extends JFrame {
 
     private void styleCheckBox(JCheckBox check) {
         check.setOpaque(false);
-        check.setForeground(new Color(226, 232, 240));
+        check.setForeground(new Color(30, 41, 59));
         check.setFont(new Font("SansSerif", Font.PLAIN, 13));
         check.setBorder(new EmptyBorder(5, 0, 5, 0));
     }
@@ -1059,9 +1148,9 @@ public class FindLaptop extends JFrame {
     }
 
     private static class RoundedPanel extends JPanel {
-        private final int cornerRadius = 15;
-        private final Color backgroundColor = new Color(30, 41, 59, 180);
-        private final Color borderColor = new Color(51, 65, 85);
+        private final int cornerRadius = 18;
+        private final Color backgroundColor = new Color(255, 255, 255, 170);
+        private final Color borderColor = new Color(255, 255, 255, 220);
 
         public RoundedPanel(LayoutManager layout) {
             super(layout);
@@ -1071,17 +1160,23 @@ public class FindLaptop extends JFrame {
         @Override
         protected void paintComponent(Graphics g) {
             super.paintComponent(g);
-            Dimension arcs = new Dimension(cornerRadius, cornerRadius);
+            Graphics2D graphics = (Graphics2D) g.create();
+            graphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
             int width = getWidth();
             int height = getHeight();
-            Graphics2D graphics = (Graphics2D) g;
-            graphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
             graphics.setColor(backgroundColor);
-            graphics.fillRoundRect(0, 0, width - 1, height - 1, arcs.width, arcs.height);
+            graphics.fillRoundRect(0, 0, width - 1, height - 1, cornerRadius, cornerRadius);
+
+            graphics.setColor(new Color(209, 213, 219, 140));
+            graphics.setStroke(new java.awt.BasicStroke(1.0f));
+            graphics.drawRoundRect(0, 0, width - 1, height - 1, cornerRadius, cornerRadius);
 
             graphics.setColor(borderColor);
-            graphics.drawRoundRect(0, 0, width - 1, height - 1, arcs.width, arcs.height);
+            graphics.setStroke(new java.awt.BasicStroke(1.5f));
+            graphics.drawRoundRect(1, 1, width - 3, height - 3, cornerRadius - 2, cornerRadius - 2);
+
+            graphics.dispose();
         }
     }
 
@@ -1177,11 +1272,11 @@ public class FindLaptop extends JFrame {
         public RoundedTextField(String text) {
             super(text);
             setOpaque(false);
-            setBackground(new Color(30, 41, 59));
-            setForeground(Color.WHITE);
-            setCaretColor(Color.WHITE);
+            setBackground(new Color(255, 255, 255, 200));
+            setForeground(new Color(15, 23, 42));
+            setCaretColor(new Color(79, 70, 229));
             setFont(new Font("SansSerif", Font.PLAIN, 13));
-            setBorder(BorderFactory.createEmptyBorder(6, 12, 6, 12));
+            setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 12));
         }
 
         @Override
@@ -1199,9 +1294,11 @@ public class FindLaptop extends JFrame {
             Graphics2D g2 = (Graphics2D) g.create();
             g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
             if (hasFocus()) {
-                g2.setColor(new Color(99, 102, 241));
+                g2.setColor(new Color(99, 102, 241, 200));
+                g2.setStroke(new java.awt.BasicStroke(1.5f));
             } else {
-                g2.setColor(new Color(71, 85, 105));
+                g2.setColor(new Color(203, 213, 225));
+                g2.setStroke(new java.awt.BasicStroke(1.0f));
             }
             g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 10, 10);
             g2.dispose();
