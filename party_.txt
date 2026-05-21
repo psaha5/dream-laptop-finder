@@ -1,0 +1,13 @@
+Order details:
+	Name: party (0458374682)
+
+CUSTOM LAPTOP BUILD...
+
+*******************************************
+Laptop Category: Gaming Laptop
+Laptop Brand: Apple
+Pre-installed Software:
+ --> Adobe Creative Cloud Pro Suite
+ --> Norton Antivirus Protection Suite
+Graphics Card (GPU): NVIDIA GeForce RTX 3050
+Extras: Touchscreen Support, Ultra-Portable Design, Backlit Keyboard

@@ -48,13 +48,19 @@ public class FindLaptop extends JFrame {
 
     public FindLaptop() {
         super(appName);
-        setUndecorated(true);
-        setExtendedState(JFrame.MAXIMIZED_BOTH);
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         
         try {
-            UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+            for (UIManager.LookAndFeelInfo info : UIManager.getInstalledLookAndFeels()) {
+                if ("Nimbus".equals(info.getName())) {
+                    UIManager.setLookAndFeel(info.getClassName());
+                    break;
+                }
+            }
         } catch (Exception ignored) {}
+
+        setExtendedState(JFrame.MAXIMIZED_BOTH);
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setMinimumSize(new Dimension(1024, 768));
 
         JPanel contentPane = new JPanel(new BorderLayout());
         contentPane.setBackground(new Color(9, 13, 26));
@@ -77,6 +83,7 @@ public class FindLaptop extends JFrame {
         contentPane.add(mainWorkspace, BorderLayout.CENTER);
         setContentPane(contentPane);
 
+        hookupRealtimeListeners();
         updateSearch();
     }
 
@@ -126,7 +133,7 @@ public class FindLaptop extends JFrame {
         styleComboBox(categoryCombo);
         scrollContent.add(createFormGroup("Laptop Category", categoryCombo));
 
-        Object[] brands = registry.getAllFeatureValues(Filter.BUN).toArray();
+        Object[] brands = registry.getAllFeatureValues(Filter.BRAND).toArray();
         brandCombo = new JComboBox<>(brands);
         styleComboBox(brandCombo);
         scrollContent.add(createFormGroup("Preferred Brand", brandCombo));
@@ -160,8 +167,7 @@ public class FindLaptop extends JFrame {
 
         scrollContent.add(Box.createRigidArea(new Dimension(0, 10)));
         scrollContent.add(createSidebarHeader("FILTER HARDWARE TAGS"));
-        featureTagsField = new JTextField("");
-        styleTextField(featureTagsField);
+        featureTagsField = new RoundedTextField("");
         scrollContent.add(createFormGroup("Tags (e.g. Slim;RGB;Cooling)", featureTagsField));
 
         scrollContent.add(Box.createRigidArea(new Dimension(0, 10)));
@@ -169,10 +175,8 @@ public class FindLaptop extends JFrame {
 
         JPanel budgetPanel = new JPanel(new GridLayout(1, 2, 10, 0));
         budgetPanel.setOpaque(false);
-        minPriceField = new JTextField("0");
-        styleTextField(minPriceField);
-        maxPriceField = new JTextField("1500");
-        styleTextField(maxPriceField);
+        minPriceField = new RoundedTextField("0");
+        maxPriceField = new RoundedTextField("1500");
 
         budgetPanel.add(createFormGroup("Min Price", minPriceField));
         budgetPanel.add(createFormGroup("Max Price", maxPriceField));
@@ -185,23 +189,60 @@ public class FindLaptop extends JFrame {
         scrollPane.getViewport().setBackground(new Color(15, 23, 42));
         sidebar.add(scrollPane, BorderLayout.CENTER);
 
-        JPanel actionPanel = new JPanel(new BorderLayout());
+        JPanel actionPanel = new JPanel(new GridLayout(2, 1, 0, 10));
         actionPanel.setOpaque(false);
         actionPanel.setBorder(new EmptyBorder(15, 15, 15, 15));
 
         RoundedButton searchBtn = new RoundedButton("APPLY CONFIGURATOR");
-        searchBtn.addActionListener(e -> updateSearch());
-        actionPanel.add(searchBtn, BorderLayout.NORTH);
+        searchBtn.setPreferredSize(new Dimension(310, 44));
+        searchBtn.addActionListener(e -> {
+            updateSearch();
+            animateResultsFlash();
+        });
+        actionPanel.add(searchBtn);
 
         RoundedButton closeBtn = new RoundedButton("EXIT FINDER");
+        closeBtn.setPreferredSize(new Dimension(310, 44));
         closeBtn.color1 = new Color(220, 38, 38);
         closeBtn.color2 = new Color(239, 68, 68);
         closeBtn.addActionListener(e -> System.exit(0));
-        actionPanel.add(Box.createRigidArea(new Dimension(0, 10)), BorderLayout.CENTER);
-        actionPanel.add(closeBtn, BorderLayout.SOUTH);
+        actionPanel.add(closeBtn);
 
         sidebar.add(actionPanel, BorderLayout.SOUTH);
         return sidebar;
+    }
+
+    private void hookupRealtimeListeners() {
+        categoryCombo.addActionListener(e -> updateSearch());
+        brandCombo.addActionListener(e -> updateSearch());
+        gpuCombo.addActionListener(e -> updateSearch());
+        softwareCombo.addActionListener(e -> updateSearch());
+        
+        touchscreenCheck.addActionListener(e -> updateSearch());
+        backlitCheck.addActionListener(e -> updateSearch());
+        numpadCheck.addActionListener(e -> updateSearch());
+        portableCheck.addActionListener(e -> updateSearch());
+
+        addRealtimeTextListener(minPriceField);
+        addRealtimeTextListener(maxPriceField);
+        addRealtimeTextListener(featureTagsField);
+    }
+
+    private void addRealtimeTextListener(JTextField field) {
+        field.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
+            @Override
+            public void insertUpdate(javax.swing.event.DocumentEvent e) {
+                updateSearch();
+            }
+            @Override
+            public void removeUpdate(javax.swing.event.DocumentEvent e) {
+                updateSearch();
+            }
+            @Override
+            public void changedUpdate(javax.swing.event.DocumentEvent e) {
+                updateSearch();
+            }
+        });
     }
 
     private JPanel createSearchResultsScreen() {
@@ -211,6 +252,7 @@ public class FindLaptop extends JFrame {
 
         JPanel topHeader = new JPanel(new BorderLayout());
         topHeader.setOpaque(false);
+        topHeader.setBorder(new EmptyBorder(0, 0, 20, 0));
 
         matchesHeaderLabel = new JLabel("Found 0 matches for your specifications");
         matchesHeaderLabel.setFont(new Font("SansSerif", Font.BOLD, 26));
@@ -224,7 +266,7 @@ public class FindLaptop extends JFrame {
         budgetRangeBadge.setBackground(new Color(79, 70, 229));
         budgetRangeBadge.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(new Color(99, 102, 241), 1),
-                new EmptyBorder(5, 12, 5, 12)
+                new EmptyBorder(6, 15, 6, 15)
         ));
         topHeader.add(budgetRangeBadge, BorderLayout.EAST);
 
@@ -276,22 +318,22 @@ public class FindLaptop extends JFrame {
         formPanel.add(sep, gbc);
 
         gbc.gridy = 3;
-        checkoutNameField = new JTextField("");
-        styleTextField(checkoutNameField);
+        checkoutNameField = new RoundedTextField("");
         formPanel.add(createFormGroup("Client Name", checkoutNameField), gbc);
 
         gbc.gridy = 4;
-        checkoutPhoneField = new JTextField("");
-        styleTextField(checkoutPhoneField);
+        checkoutPhoneField = new RoundedTextField("");
         formPanel.add(createFormGroup("10-Digit Contact Phone Number", checkoutPhoneField), gbc);
 
         gbc.gridy = 5;
         RoundedButton submitBtn = new RoundedButton("COMPLETE ORDER REGISTRATION");
+        submitBtn.setPreferredSize(new Dimension(500, 44));
         submitBtn.addActionListener(e -> submitActiveCheckout());
         formPanel.add(submitBtn, gbc);
 
         gbc.gridy = 6;
         RoundedButton cancelBtn = new RoundedButton("RETURN TO CONFIGURATOR");
+        cancelBtn.setPreferredSize(new Dimension(500, 44));
         cancelBtn.color1 = new Color(71, 85, 105);
         cancelBtn.color2 = new Color(100, 116, 139);
         cancelBtn.addActionListener(e -> cardLayout.show(mainWorkspace, "RESULTS"));
@@ -337,6 +379,7 @@ public class FindLaptop extends JFrame {
 
         gbc.gridy = 3;
         RoundedButton finishBtn = new RoundedButton("RESET MATCHING WORKSPACE");
+        finishBtn.setPreferredSize(new Dimension(600, 44));
         finishBtn.addActionListener(e -> {
             checkoutNameField.setText("");
             checkoutPhoneField.setText("");
@@ -355,50 +398,48 @@ public class FindLaptop extends JFrame {
         LaptopType type = (LaptopType) categoryCombo.getSelectedItem();
         filterMap.put(Filter.TYPE, type);
 
-        if (type == LaptopType.BURGER) {
-            String brand = brandCombo.getSelectedItem().toString();
-            if (!brand.equals("I don't mind")) {
-                filterMap.put(Filter.BUN, brand);
-            }
+        String brand = brandCombo.getSelectedItem().toString();
+        if (!brand.equals("I don't mind")) {
+            filterMap.put(Filter.BRAND, brand);
+        }
 
-            Set<Software> softs = new LinkedHashSet<>();
-            Software selectedSoft = (Software) softwareCombo.getSelectedItem();
-            if (selectedSoft != Software.NA) {
-                softs.add(selectedSoft);
-                filterMap.put(Filter.SAUCE_S, softs);
-            }
-        } else {
-            Set<String> leafyGreens = new LinkedHashSet<>();
-            String rawTags = featureTagsField.getText().trim();
-            if (!rawTags.isEmpty()) {
-                for (String t : rawTags.split(";")) {
-                    if (!t.strip().isEmpty()) {
-                        leafyGreens.add(t.strip());
-                    }
+        Set<Software> softs = new LinkedHashSet<>();
+        Software selectedSoft = (Software) softwareCombo.getSelectedItem();
+        if (selectedSoft != Software.NA) {
+            softs.add(selectedSoft);
+            filterMap.put(Filter.SOFTWARE, softs);
+        }
+
+        Set<String> leafyGreens = new LinkedHashSet<>();
+        String rawTags = featureTagsField.getText().trim();
+        if (!rawTags.isEmpty()) {
+            for (String t : rawTags.split(";")) {
+                if (!t.strip().isEmpty()) {
+                    leafyGreens.add(t.strip());
                 }
             }
-            if (!leafyGreens.isEmpty()) {
-                filterMap.put(Filter.LEAFY_GREENS, leafyGreens);
-            }
+        }
+        if (!leafyGreens.isEmpty()) {
+            filterMap.put(Filter.FEATURES, leafyGreens);
+        }
 
-            if (numpadCheck.isSelected()) {
-                filterMap.put(Filter.CUCUMBER, true);
-            }
+        if (numpadCheck.isSelected()) {
+            filterMap.put(Filter.NUMERIC_KEYPAD, true);
         }
 
         GPU gpu = (GPU) gpuCombo.getSelectedItem();
         if (gpu != GPU.NA) {
-            filterMap.put(Filter.MEAT, gpu);
+            filterMap.put(Filter.GPU, gpu);
         }
 
         if (touchscreenCheck.isSelected()) {
-            filterMap.put(Filter.CHEESE, true);
+            filterMap.put(Filter.TOUCHSCREEN, true);
         }
         if (backlitCheck.isSelected()) {
-            filterMap.put(Filter.PICKLES, true);
+            filterMap.put(Filter.BACKLIT_KEYBOARD, true);
         }
         if (portableCheck.isSelected()) {
-            filterMap.put(Filter.TOMATO, true);
+            filterMap.put(Filter.PORTABILITY, true);
         }
 
         int minPrice = 0;
@@ -406,20 +447,20 @@ public class FindLaptop extends JFrame {
         try {
             minPrice = Integer.parseInt(minPriceField.getText().trim());
         } catch (NumberFormatException e) {
-            minPriceField.setText("0");
+            minPrice = 0;
         }
         try {
             maxPrice = Integer.parseInt(maxPriceField.getText().trim());
         } catch (NumberFormatException e) {
-            maxPriceField.setText("1500");
+            maxPrice = 1500;
         }
 
         activeDreamQuery = new DreamLaptop(filterMap, minPrice, maxPrice);
 
         if (maxPrice < 100) {
-            budgetRangeBadge.setText("⚠️ Lower Budget Range Referral Active");
+            budgetRangeBadge.setText("⚠️ Lower Range Referral Program Active");
             budgetRangeBadge.setBackground(new Color(220, 38, 38));
-            matchesHeaderLabel.setText("Lower Range Special Support Referral");
+            matchesHeaderLabel.setText("Lower Range Special Support referral");
             showLowerRangeReferralView();
             return;
         }
@@ -442,7 +483,7 @@ public class FindLaptop extends JFrame {
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.weightx = 1.0;
-        gbc.insets = new java.awt.Insets(10, 0, 10, 0);
+        gbc.insets = new java.awt.Insets(12, 0, 12, 0);
         gbc.gridx = 0;
 
         int row = 0;
@@ -451,6 +492,9 @@ public class FindLaptop extends JFrame {
                 gbc.gridy = row++;
                 resultsGrid.add(createLaptopCard(match), gbc);
             }
+            gbc.gridy = row++;
+            gbc.weighty = 1.0;
+            resultsGrid.add(Box.createGlue(), gbc);
         } else {
             gbc.gridy = row++;
             resultsGrid.add(createEmptyStateCard(), gbc);
@@ -459,6 +503,31 @@ public class FindLaptop extends JFrame {
         resultsGrid.revalidate();
         resultsGrid.repaint();
         cardLayout.show(mainWorkspace, "RESULTS");
+    }
+
+    private void animateResultsFlash() {
+        Color flashColor = new Color(30, 41, 59);
+        Color baseColor = new Color(9, 13, 26);
+        long startTime = System.currentTimeMillis();
+        long duration = 300;
+        javax.swing.Timer timer = new javax.swing.Timer(15, null);
+        timer.addActionListener(e -> {
+            long elapsed = System.currentTimeMillis() - startTime;
+            if (elapsed >= duration) {
+                resultsGrid.setBackground(baseColor);
+                resultsGrid.repaint();
+                timer.stop();
+            } else {
+                float pct = (float) elapsed / duration;
+                float inversePct = 1.0f - pct;
+                int r = (int) (baseColor.getRed() * pct + flashColor.getRed() * inversePct);
+                int g = (int) (baseColor.getGreen() * pct + flashColor.getGreen() * inversePct);
+                int b = (int) (baseColor.getBlue() * pct + flashColor.getBlue() * inversePct);
+                resultsGrid.setBackground(new Color(r, g, b));
+                resultsGrid.repaint();
+            }
+        });
+        timer.start();
     }
 
     private void showLowerRangeReferralView() {
@@ -473,7 +542,7 @@ public class FindLaptop extends JFrame {
         alertPanel.setPreferredSize(new Dimension(800, 480));
 
         GridBagConstraints subGbc = new GridBagConstraints();
-        subGbc.insets = new java.awt.Insets(15, 30, 15, 30);
+        subGbc.insets = new java.awt.Insets(20, 30, 20, 30);
         subGbc.fill = GridBagConstraints.HORIZONTAL;
         subGbc.weightx = 1.0;
 
@@ -494,6 +563,7 @@ public class FindLaptop extends JFrame {
 
         subGbc.gridy = 2;
         RoundedButton callBtn = new RoundedButton("SUBMIT HARDWARE TECHNICIAN REFERRAL");
+        callBtn.setPreferredSize(new Dimension(500, 44));
         callBtn.color1 = new Color(220, 38, 38);
         callBtn.color2 = new Color(239, 68, 68);
         callBtn.addActionListener(e -> {
@@ -516,6 +586,11 @@ public class FindLaptop extends JFrame {
         card.setPreferredSize(new Dimension(850, 180));
         card.setBorder(new EmptyBorder(15, 20, 15, 20));
 
+        String brand = laptop.getDreamLaptop().getAllFilters().containsKey(Filter.BRAND) 
+            ? laptop.getDreamLaptop().getFilter(Filter.BRAND).toString() 
+            : "L";
+        card.add(createBrandMonogram(brand), BorderLayout.WEST);
+
         JPanel details = new JPanel(new GridLayout(3, 1, 0, 5));
         details.setOpaque(false);
 
@@ -534,6 +609,28 @@ public class FindLaptop extends JFrame {
                 new EmptyBorder(2, 6, 2, 6)
         ));
         titleBar.add(idBadge);
+
+        boolean isPerfect = true;
+        if (activeDreamQuery != null) {
+            isPerfect = laptop.getDreamLaptop().matches(activeDreamQuery);
+            if (activeDreamQuery.getMinPrice() >= 0 && laptop.getPrice() < activeDreamQuery.getMinPrice()) {
+                isPerfect = false;
+            }
+            if (activeDreamQuery.getMaxPrice() >= 0 && laptop.getPrice() > activeDreamQuery.getMaxPrice()) {
+                isPerfect = false;
+            }
+        }
+        if (!isPerfect) {
+            JLabel altBadge = new JLabel("✨ Recommended Alternative");
+            altBadge.setFont(new Font("SansSerif", Font.BOLD, 11));
+            altBadge.setForeground(new Color(245, 158, 11));
+            altBadge.setBorder(BorderFactory.createCompoundBorder(
+                    BorderFactory.createLineBorder(new Color(245, 158, 11), 1),
+                    new EmptyBorder(2, 6, 2, 6)
+            ));
+            titleBar.add(altBadge);
+        }
+
         details.add(titleBar);
 
         JLabel desc = new JLabel(laptop.getDescription());
@@ -545,11 +642,11 @@ public class FindLaptop extends JFrame {
         specsPanel.setOpaque(false);
         
         specsPanel.add(createSpecBadge(laptop.getDreamLaptop().getFilter(Filter.TYPE).toString()));
-        if (laptop.getDreamLaptop().getAllFilters().containsKey(Filter.BUN)) {
-            specsPanel.add(createSpecBadge(laptop.getDreamLaptop().getFilter(Filter.BUN).toString()));
+        if (laptop.getDreamLaptop().getAllFilters().containsKey(Filter.BRAND)) {
+            specsPanel.add(createSpecBadge(laptop.getDreamLaptop().getFilter(Filter.BRAND).toString()));
         }
-        if (laptop.getDreamLaptop().getAllFilters().containsKey(Filter.MEAT)) {
-            specsPanel.add(createSpecBadge(laptop.getDreamLaptop().getFilter(Filter.MEAT).toString()));
+        if (laptop.getDreamLaptop().getAllFilters().containsKey(Filter.GPU)) {
+            specsPanel.add(createSpecBadge(laptop.getDreamLaptop().getFilter(Filter.GPU).toString()));
         }
         details.add(specsPanel);
 
@@ -587,6 +684,62 @@ public class FindLaptop extends JFrame {
         return card;
     }
 
+    private JPanel createBrandMonogram(String brand) {
+        String letter = brand.substring(0, 1).toUpperCase();
+        Color bgStart;
+        Color bgEnd;
+        switch (brand.toUpperCase()) {
+            case "ASUS" -> {
+                bgStart = new Color(59, 130, 246);
+                bgEnd = new Color(29, 78, 216);
+            }
+            case "DELL" -> {
+                bgStart = new Color(14, 165, 233);
+                bgEnd = new Color(3, 105, 161);
+            }
+            case "HP" -> {
+                bgStart = new Color(13, 148, 136);
+                bgEnd = new Color(15, 118, 110);
+            }
+            case "LENOVO" -> {
+                bgStart = new Color(249, 115, 22);
+                bgEnd = new Color(194, 65, 12);
+            }
+            case "APPLE" -> {
+                bgStart = new Color(107, 114, 128);
+                bgEnd = new Color(55, 65, 81);
+            }
+            case "MSI" -> {
+                bgStart = new Color(239, 68, 68);
+                bgEnd = new Color(185, 28, 28);
+            }
+            default -> {
+                bgStart = new Color(99, 102, 241);
+                bgEnd = new Color(67, 56, 202);
+            }
+        }
+        JPanel monogram = new JPanel() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                GradientPaint gp = new GradientPaint(0, 0, bgStart, 0, getHeight(), bgEnd);
+                g2.setPaint(gp);
+                g2.fillOval(0, 0, getWidth(), getHeight());
+                g2.setColor(Color.WHITE);
+                g2.setFont(new Font("SansSerif", Font.BOLD, 22));
+                FontMetrics fm = g2.getFontMetrics();
+                int x = (getWidth() - fm.stringWidth(letter)) / 2;
+                int y = (getHeight() - fm.getHeight()) / 2 + fm.getAscent();
+                g2.drawString(letter, x, y);
+                g2.dispose();
+            }
+        };
+        monogram.setPreferredSize(new Dimension(54, 54));
+        monogram.setOpaque(false);
+        return monogram;
+    }
+
     private JPanel createEmptyStateCard() {
         RoundedPanel card = new RoundedPanel(new GridBagLayout());
         card.setPreferredSize(new Dimension(850, 240));
@@ -613,6 +766,7 @@ public class FindLaptop extends JFrame {
 
         gbc.gridy = 2;
         RoundedButton customBtn = new RoundedButton("REQUEST CUSTOM BUILT LAPTOP");
+        customBtn.setPreferredSize(new Dimension(500, 44));
         customBtn.color1 = new Color(147, 51, 234);
         customBtn.color2 = new Color(168, 85, 247);
         customBtn.addActionListener(e -> {
@@ -629,33 +783,36 @@ public class FindLaptop extends JFrame {
     }
 
     private void submitActiveCheckout() {
-        String name = checkoutNameField.getText().trim();
-        if (name.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Please enter a client name.", appName, JOptionPane.ERROR_MESSAGE);
-            return;
-        }
-
-        String phoneStr = checkoutPhoneField.getText().trim();
-        long phoneNumber = 0;
         try {
-            phoneNumber = Long.parseLong(phoneStr);
-        } catch (NumberFormatException e) {
-            JOptionPane.showMessageDialog(this, "Invalid entry. Phone number must be numeric.", appName, JOptionPane.ERROR_MESSAGE);
-            return;
-        }
+            String name = checkoutNameField.getText().trim();
+            if (name.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "Please enter a client name.", appName, JOptionPane.ERROR_MESSAGE);
+                return;
+            }
 
-        int length = String.valueOf(phoneNumber).length();
-        if (length != 9) {
-            JOptionPane.showMessageDialog(this, "Invalid entry. Enter a 10-digit phone number in format 0412 123 345.", appName, JOptionPane.ERROR_MESSAGE);
-            return;
-        }
+            String phoneStr = checkoutPhoneField.getText().trim().replaceAll("[^0-9]", "");
+            if (phoneStr.length() != 10) {
+                JOptionPane.showMessageDialog(this, "Invalid entry. Enter a 10-digit phone number in format 0412 123 345.", appName, JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            
+            long phoneNumber = 0;
+            try {
+                phoneNumber = Long.parseLong(phoneStr);
+            } catch (NumberFormatException e) {
+                JOptionPane.showMessageDialog(this, "Invalid entry. Phone number must be numeric.", appName, JOptionPane.ERROR_MESSAGE);
+                return;
+            }
 
-        Client client = new Client(name, phoneNumber);
+            Client client = new Client(name, phoneNumber);
 
-        if (isLowerRangeCheckout) {
-            submitLowerRangeInquiry(client, activeDreamQuery);
-        } else {
-            submitOrder(client, activeSelectedLaptop);
+            if (isLowerRangeCheckout) {
+                submitLowerRangeInquiry(client, activeDreamQuery);
+            } else {
+                submitOrder(client, activeSelectedLaptop);
+            }
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "An error occurred during submission: " + ex.getMessage(), appName, JOptionPane.ERROR_MESSAGE);
         }
     }
 
@@ -677,7 +834,7 @@ public class FindLaptop extends JFrame {
             Files.writeString(path, lineToWrite);
             
             successTitleLabel.setText("Order Registered Successfully");
-            successDetailsLabel.setText("<html><center>Order persistent file created at:<br><b>" + path.toAbsolutePath() + "</b><br><br>Our UNE hardware technicians will assemble your specifications and contact you shortly.</center></html>");
+            successDetailsLabel.setText("<html><center>Order persistent file created at:<br><b>" + path.toAbsolutePath() + "</b><br><br>Our UNE hardware technicians will contact you shortly.</center></html>");
             cardLayout.show(mainWorkspace, "SUCCESS");
         } catch (IOException io) {
             JOptionPane.showMessageDialog(this, "Error writing order file: " + io.getMessage(), appName, JOptionPane.ERROR_MESSAGE);
@@ -708,10 +865,20 @@ public class FindLaptop extends JFrame {
     }
 
     private JLabel createSpecBadge(String text) {
-        JLabel badge = new JLabel(text);
+        JLabel badge = new JLabel(text) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(getBackground());
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 8, 8);
+                super.paintComponent(g);
+                g2.dispose();
+            }
+        };
         badge.setFont(new Font("SansSerif", Font.PLAIN, 12));
         badge.setForeground(new Color(203, 213, 225));
-        badge.setOpaque(true);
+        badge.setOpaque(false);
         badge.setBackground(new Color(51, 65, 85));
         badge.setBorder(new EmptyBorder(3, 8, 3, 8));
         return badge;
@@ -738,10 +905,49 @@ public class FindLaptop extends JFrame {
     }
 
     private void styleComboBox(JComboBox<?> combo) {
+        combo.setUI(new javax.swing.plaf.basic.BasicComboBoxUI() {
+            @Override
+            protected JButton createArrowButton() {
+                JButton button = new JButton() {
+                    @Override
+                    protected void paintComponent(Graphics g) {
+                        Graphics2D g2 = (Graphics2D) g.create();
+                        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                        g2.setColor(Color.WHITE);
+                        int[] xPoints = {getWidth() / 2 - 4, getWidth() / 2 + 4, getWidth() / 2};
+                        int[] yPoints = {getHeight() / 2 - 2, getHeight() / 2 - 2, getHeight() / 2 + 3};
+                        g2.fillPolygon(xPoints, yPoints, 3);
+                        g2.dispose();
+                    }
+                };
+                button.setBackground(new Color(30, 41, 59));
+                button.setBorder(BorderFactory.createEmptyBorder());
+                button.setContentAreaFilled(false);
+                button.setFocusPainted(false);
+                return button;
+            }
+            
+            @Override
+            public void paintCurrentValueBackground(Graphics g, Rectangle bounds, boolean hasFocus) {
+                g.setColor(new Color(30, 41, 59));
+                g.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
+            }
+        });
         combo.setBackground(new Color(30, 41, 59));
         combo.setForeground(Color.WHITE);
         combo.setFont(new Font("SansSerif", Font.PLAIN, 13));
         combo.setBorder(BorderFactory.createLineBorder(new Color(71, 85, 105)));
+        
+        combo.setRenderer(new DefaultListCellRenderer() {
+            @Override
+            public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
+                super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
+                setBackground(isSelected ? new Color(79, 70, 229) : new Color(30, 41, 59));
+                setForeground(Color.WHITE);
+                setBorder(new EmptyBorder(5, 10, 5, 10));
+                return this;
+            }
+        });
     }
 
     private void styleCheckBox(JCheckBox check) {
@@ -751,17 +957,6 @@ public class FindLaptop extends JFrame {
         check.setBorder(new EmptyBorder(5, 0, 5, 0));
     }
 
-    private void styleTextField(JTextField field) {
-        field.setBackground(new Color(30, 41, 59));
-        field.setForeground(Color.WHITE);
-        field.setCaretColor(Color.WHITE);
-        field.setFont(new Font("SansSerif", Font.PLAIN, 13));
-        field.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(71, 85, 105)),
-                new EmptyBorder(6, 10, 6, 10)
-        ));
-    }
-
     public static LaptopRegistry loadRegistry(String filePath) {
         LaptopRegistry registry = new LaptopRegistry();
         Path path = Path.of(filePath);
@@ -769,140 +964,96 @@ public class FindLaptop extends JFrame {
         try {
             fileContents = Files.readAllLines(path);
         } catch (IOException io) {
-            System.out.println("File could not be found");
-            System.exit(0);
+            JOptionPane.showMessageDialog(null, "Database file laptops.txt not found. Starting with empty catalog.", appName, JOptionPane.WARNING_MESSAGE);
+            fileContents = new ArrayList<>();
         }
 
         for (int i = 1; i < fileContents.size(); i++) {
             String line = fileContents.get(i);
             if (line.strip().isEmpty()) continue;
 
-            int firstBracketOpen = line.indexOf('[');
-            int firstBracketClose = line.indexOf(']', firstBracketOpen);
-            int secondBracketOpen = line.indexOf('[', firstBracketClose);
-            int secondBracketClose = line.indexOf(']', secondBracketOpen);
-
-            String singularInfoRaw = line.substring(0, firstBracketOpen);
-            String[] singularInfo = singularInfoRaw.split(",");
-
-            String featuresRaw = line.substring(firstBracketOpen + 1, firstBracketClose);
-            String extrasRaw = line.substring(secondBracketOpen + 1, secondBracketClose);
-
-            int descStart = line.indexOf('"', secondBracketClose);
-            if (descStart == -1) {
-                descStart = line.indexOf('[', secondBracketClose);
-            }
-            int descEnd = line.lastIndexOf('"');
-            if (descEnd == -1 || descEnd <= descStart) {
-                descEnd = line.lastIndexOf(']');
-            }
-            if (descStart == -1) {
-                descStart = secondBracketClose + 2;
-                descEnd = line.length();
-            } else {
-                descStart++;
-            }
-            String description = line.substring(descStart, descEnd).strip();
-
-            String laptopIdentifier = singularInfo[0].strip();
-
-            LaptopType type = null;
             try {
-                type = LaptopType.valueOf(singularInfo[1].toUpperCase().strip());
-            } catch (IllegalArgumentException e) {
-                System.out.println("Error parsing type data on line " + (i + 1));
-                System.exit(0);
-            }
+                int firstBracketOpen = line.indexOf('[');
+                int firstBracketClose = line.indexOf(']', firstBracketOpen);
+                int secondBracketOpen = line.indexOf('[', firstBracketClose);
+                int secondBracketClose = line.indexOf(']', secondBracketOpen);
 
-            String laptopName = singularInfo[2].strip();
+                String singularInfoRaw = line.substring(0, firstBracketOpen);
+                String[] singularInfo = singularInfoRaw.split(",");
 
-            double price = 0;
-            try {
-                price = Double.parseDouble(singularInfo[3].strip());
-            } catch (NumberFormatException n) {
-                System.out.println("Error parsing price data on line " + (i + 1));
-                System.exit(0);
-            }
+                String featuresRaw = line.substring(firstBracketOpen + 1, firstBracketClose);
+                String extrasRaw = line.substring(secondBracketOpen + 1, secondBracketClose);
 
-            String brandName = singularInfo[4].toUpperCase().strip();
-            Brand brand = null;
-            try {
-                brand = Brand.valueOf(brandName);
-            } catch (IllegalArgumentException e) {
-                System.out.println("Error parsing brand data on line " + (i + 1));
-                System.exit(0);
-            }
-
-            GPU gpu = null;
-            try {
-                gpu = GPU.valueOf(singularInfo[5].toUpperCase().strip());
-            } catch (IllegalArgumentException e) {
-                System.out.println("Error parsing GPU data on line " + (i + 1));
-                System.exit(0);
-            }
-
-            boolean cheese = false;
-            String cheeseRaw = singularInfo[6].strip().toUpperCase();
-            if (cheeseRaw.equals("YES")) cheese = true;
-
-            boolean pickles = false;
-            String pickleRaw = singularInfo[7].strip().toUpperCase();
-            if (pickleRaw.equals("YES")) pickles = true;
-
-            boolean cucumber = false;
-            String cucumberRaw = singularInfo[8].strip().toUpperCase();
-            if (cucumberRaw.equals("YES")) cucumber = true;
-
-            boolean tomato = false;
-            String tomatoRaw = singularInfo[9].strip().toUpperCase();
-            if (tomatoRaw.equals("YES")) tomato = true;
-
-            Dressing dressing = null;
-            try {
-                dressing = Dressing.valueOf(singularInfo[10].toUpperCase().strip());
-            } catch (IllegalArgumentException e) {
-                System.out.println("Error parsing dressing data on line " + (i + 1));
-                System.exit(0);
-            }
-
-            Set<String> features = new LinkedHashSet<>();
-            for (String f : featuresRaw.split(";")) {
-                if (!f.equalsIgnoreCase("NA") && !f.strip().isEmpty()) {
-                    features.add(f.strip());
+                int descStart = line.indexOf('"', secondBracketClose);
+                if (descStart == -1) {
+                    descStart = line.indexOf('[', secondBracketClose);
                 }
-            }
-
-            Set<Software> extras = new LinkedHashSet<>();
-            for (String s : extrasRaw.split(",")) {
-                Software soft = null;
-                try {
-                    soft = Software.valueOf(s.toUpperCase().strip());
-                } catch (IllegalArgumentException e) {
-                    System.out.println("Error parsing software data on line " + (i + 1));
-                    System.exit(0);
+                int descEnd = line.lastIndexOf('"');
+                if (descEnd == -1 || descEnd <= descStart) {
+                    descEnd = line.lastIndexOf(']');
                 }
-                extras.add(soft);
-            }
+                if (descStart == -1) {
+                    descStart = secondBracketClose + 2;
+                    descEnd = line.length();
+                } else {
+                    descStart++;
+                }
+                String description = line.substring(descStart, descEnd).strip();
 
-            Map<Filter, Object> filterMap = new LinkedHashMap<>();
-            filterMap.put(Filter.TYPE, type);
-            if (type.equals(LaptopType.BURGER)) {
-                filterMap.put(Filter.BUN, brand.toString());
-                if (!extras.isEmpty()) filterMap.put(Filter.SAUCE_S, extras);
-            }
-            if (!gpu.equals(GPU.NA)) filterMap.put(Filter.MEAT, gpu);
-            filterMap.put(Filter.PICKLES, pickles);
-            filterMap.put(Filter.CHEESE, cheese);
-            filterMap.put(Filter.TOMATO, tomato);
-            if (type.equals(LaptopType.SALAD)) {
-                filterMap.put(Filter.DRESSING, dressing);
-                filterMap.put(Filter.LEAFY_GREENS, features);
-                filterMap.put(Filter.CUCUMBER, cucumber);
-            }
+                String laptopIdentifier = singularInfo[0].strip();
 
-            DreamLaptop dreamLaptop = new DreamLaptop(filterMap);
-            Laptop laptop = new Laptop(laptopIdentifier, laptopName, price, description, dreamLaptop);
-            registry.addLaptop(laptop);
+                LaptopType type = LaptopType.valueOf(singularInfo[1].toUpperCase().strip());
+                String laptopName = singularInfo[2].strip();
+                double price = Double.parseDouble(singularInfo[3].strip());
+                String brandName = singularInfo[4].toUpperCase().strip();
+                Brand brand = Brand.valueOf(brandName);
+                GPU gpu = GPU.valueOf(singularInfo[5].toUpperCase().strip());
+
+                boolean touchscreen = singularInfo[6].strip().equalsIgnoreCase("YES");
+                boolean backlit = singularInfo[7].strip().equalsIgnoreCase("YES");
+                boolean numpad = singularInfo[8].strip().equalsIgnoreCase("YES");
+                boolean portable = singularInfo[9].strip().equalsIgnoreCase("YES");
+
+                Docking docking = Docking.valueOf(singularInfo[10].toUpperCase().strip());
+
+                Set<String> features = new LinkedHashSet<>();
+                for (String f : featuresRaw.split(";")) {
+                    if (!f.equalsIgnoreCase("NA") && !f.strip().isEmpty()) {
+                        features.add(f.strip());
+                    }
+                }
+
+                Set<Software> extras = new LinkedHashSet<>();
+                for (String s : extrasRaw.split(",")) {
+                    if (!s.equalsIgnoreCase("NA") && !s.strip().isEmpty()) {
+                        extras.add(Software.valueOf(s.toUpperCase().strip()));
+                    }
+                }
+
+                Map<Filter, Object> filterMap = new LinkedHashMap<>();
+                filterMap.put(Filter.TYPE, type);
+                filterMap.put(Filter.BRAND, brand.toString());
+                if (!extras.isEmpty()) {
+                    filterMap.put(Filter.SOFTWARE, extras);
+                }
+                if (!gpu.equals(GPU.NA)) {
+                    filterMap.put(Filter.GPU, gpu);
+                }
+                filterMap.put(Filter.BACKLIT_KEYBOARD, backlit);
+                filterMap.put(Filter.TOUCHSCREEN, touchscreen);
+                filterMap.put(Filter.PORTABILITY, portable);
+                filterMap.put(Filter.DOCKING, docking);
+                if (!features.isEmpty()) {
+                    filterMap.put(Filter.FEATURES, features);
+                }
+                filterMap.put(Filter.NUMERIC_KEYPAD, numpad);
+
+                DreamLaptop dreamLaptop = new DreamLaptop(filterMap);
+                Laptop laptop = new Laptop(laptopIdentifier, laptopName, price, description, dreamLaptop);
+                registry.addLaptop(laptop);
+            } catch (Exception e) {
+                System.err.println("Skipping malformed row " + (i + 1) + ": " + e.getMessage());
+            }
         }
         return registry;
     }
@@ -937,9 +1088,14 @@ public class FindLaptop extends JFrame {
     private static class RoundedButton extends JButton {
         public Color color1 = new Color(79, 70, 229);
         public Color color2 = new Color(99, 102, 241);
+        private Color baseColor1;
+        private Color baseColor2;
+        private boolean isHovered = false;
+        private boolean isPressed = false;
 
         public RoundedButton(String text) {
             super(text);
+            setOpaque(false);
             setContentAreaFilled(false);
             setFocusPainted(false);
             setBorderPainted(false);
@@ -950,15 +1106,26 @@ public class FindLaptop extends JFrame {
             addMouseListener(new MouseAdapter() {
                 @Override
                 public void mouseEntered(MouseEvent e) {
-                    color1 = color1.brighter();
-                    color2 = color2.brighter();
+                    isHovered = true;
                     repaint();
                 }
 
                 @Override
                 public void mouseExited(MouseEvent e) {
-                    color1 = color1.darker();
-                    color2 = color2.darker();
+                    isHovered = false;
+                    isPressed = false;
+                    repaint();
+                }
+
+                @Override
+                public void mousePressed(MouseEvent e) {
+                    isPressed = true;
+                    repaint();
+                }
+
+                @Override
+                public void mouseReleased(MouseEvent e) {
+                    isPressed = false;
                     repaint();
                 }
             });
@@ -968,11 +1135,76 @@ public class FindLaptop extends JFrame {
         protected void paintComponent(Graphics g) {
             Graphics2D g2 = (Graphics2D) g.create();
             g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-            GradientPaint gp = new GradientPaint(0, 0, color1, 0, getHeight(), color2);
+            
+            if (baseColor1 == null || baseColor1 != color1 || baseColor2 != color2) {
+                baseColor1 = color1;
+                baseColor2 = color2;
+            }
+
+            Color c1 = baseColor1;
+            Color c2 = baseColor2;
+            if (isPressed) {
+                c1 = adjustColor(baseColor1, -30);
+                c2 = adjustColor(baseColor2, -30);
+            } else if (isHovered) {
+                c1 = adjustColor(baseColor1, 20);
+                c2 = adjustColor(baseColor2, 20);
+            }
+
+            GradientPaint gp = new GradientPaint(0, 0, c1, 0, getHeight(), c2);
             g2.setPaint(gp);
             g2.fillRoundRect(0, 0, getWidth(), getHeight(), 12, 12);
+            
+            g2.setColor(getForeground());
+            g2.setFont(getFont());
+            FontMetrics fm = g2.getFontMetrics();
+            int x = (getWidth() - fm.stringWidth(getText())) / 2;
+            int y = (getHeight() - fm.getHeight()) / 2 + fm.getAscent();
+            g2.drawString(getText(), x, y);
+            
             g2.dispose();
+        }
+
+        private Color adjustColor(Color c, int amount) {
+            int r = Math.min(255, Math.max(0, c.getRed() + amount));
+            int g = Math.min(255, Math.max(0, c.getGreen() + amount));
+            int b = Math.min(255, Math.max(0, c.getBlue() + amount));
+            return new Color(r, g, b, c.getAlpha());
+        }
+    }
+
+    private static class RoundedTextField extends JTextField {
+        public RoundedTextField(String text) {
+            super(text);
+            setOpaque(false);
+            setBackground(new Color(30, 41, 59));
+            setForeground(Color.WHITE);
+            setCaretColor(Color.WHITE);
+            setFont(new Font("SansSerif", Font.PLAIN, 13));
+            setBorder(BorderFactory.createEmptyBorder(6, 12, 6, 12));
+        }
+
+        @Override
+        protected void paintComponent(Graphics g) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g2.setColor(getBackground());
+            g2.fillRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 10, 10);
             super.paintComponent(g);
+            g2.dispose();
+        }
+
+        @Override
+        protected void paintBorder(Graphics g) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            if (hasFocus()) {
+                g2.setColor(new Color(99, 102, 241));
+            } else {
+                g2.setColor(new Color(71, 85, 105));
+            }
+            g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 10, 10);
+            g2.dispose();
         }
     }
 }

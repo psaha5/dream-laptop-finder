@@ -101,12 +101,24 @@ public class DreamLaptop {
         for (Filter key : dreamLaptop.getAllFilters().keySet()) {
             if (this.getAllFilters().containsKey(key)) {
                 if (getFilter(key) instanceof Collection<?> && dreamLaptop.getFilter(key) instanceof Collection<?>) {
-                    Set<Object> intersect = new HashSet<>((Collection<?>) dreamLaptop.getFilter(key));
-                    intersect.retainAll((Collection<?>) getFilter(key));
-                    if (intersect.isEmpty()) return false;
+                    boolean hasMatch = false;
+                    for (Object sObj : (Collection<?>) dreamLaptop.getFilter(key)) {
+                        String s = sObj.toString().trim().toLowerCase();
+                        for (Object dbObj : (Collection<?>) getFilter(key)) {
+                            String dbVal = dbObj.toString().trim().toLowerCase();
+                            if (dbVal.contains(s) || s.contains(dbVal)) {
+                                hasMatch = true;
+                                break;
+                            }
+                        }
+                        if (hasMatch) break;
+                    }
+                    if (!hasMatch) return false;
                 } else {
                     if (!this.getFilter(key).equals(dreamLaptop.getFilter(key))) return false;
                 }
+            } else {
+                return false;
             }
         }
         return true;
