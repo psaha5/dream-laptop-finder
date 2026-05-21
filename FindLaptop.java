@@ -1,354 +1,669 @@
 import javax.swing.*;
+import javax.swing.border.EmptyBorder;
+import java.awt.*;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
+import java.util.List;
 
-/**
- * Author: Partha Saha
- * Git Repository: https://github.com/psaha5/dream-laptop-finder.git
- * 
- * The main application controller for searching laptops.
- * AI Usage: Adapted MenuSearcher structure into FindLaptop, implementing file loading, JOptionPane UI prompts, input validation, and file writing.
- */
-public class FindLaptop {
+public class FindLaptop extends JFrame {
     private static final String filePath = "laptops.txt";
-    private static final Icon icon = new ImageIcon("./byte_chew_small.png");
-    private static LaptopRegistry registry;
     private static final String appName = "Dream Laptop Finder";
+    private static final Icon logoIcon = new ImageIcon("./byte_chew_small.png");
+    private static LaptopRegistry registry;
 
-    /**
-     * Entry point of the application.
-     * @param args command line arguments.
-     */
-    public static void main(String[] args) {
-        registry = loadRegistry(filePath);
-        DreamLaptop dreamLaptop = getFilters();
-        processSearchResults(dreamLaptop);
-        System.exit(0);
+    private JComboBox<LaptopType> categoryCombo;
+    private JComboBox<Object> brandCombo;
+    private JComboBox<GPU> gpuCombo;
+    private JComboBox<Software> softwareCombo;
+    private JCheckBox touchscreenCheck;
+    private JCheckBox backlitCheck;
+    private JCheckBox numpadCheck;
+    private JCheckBox portableCheck;
+    private JTextField minPriceField;
+    private JTextField maxPriceField;
+    private JTextField featureTagsField;
+
+    private JPanel mainWorkspace;
+    private CardLayout cardLayout;
+    
+    private JPanel resultsGrid;
+    private JLabel matchesHeaderLabel;
+    private JLabel budgetRangeBadge;
+    
+    private Laptop activeSelectedLaptop;
+    private DreamLaptop activeDreamQuery;
+
+    private JTextField checkoutNameField;
+    private JTextField checkoutPhoneField;
+    private JLabel checkoutProductLabel;
+    private boolean isCustomCheckout = false;
+    private boolean isLowerRangeCheckout = false;
+
+    private JLabel successTitleLabel;
+    private JLabel successDetailsLabel;
+
+    public FindLaptop() {
+        super(appName);
+        setUndecorated(true);
+        setExtendedState(JFrame.MAXIMIZED_BOTH);
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        
+        try {
+            UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+        } catch (Exception ignored) {}
+
+        JPanel contentPane = new JPanel(new BorderLayout());
+        contentPane.setBackground(new Color(9, 13, 26));
+
+        JPanel sidebar = createSidebarPanel();
+        contentPane.add(sidebar, BorderLayout.WEST);
+
+        cardLayout = new CardLayout();
+        mainWorkspace = new JPanel(cardLayout);
+        mainWorkspace.setBackground(new Color(9, 13, 26));
+
+        JPanel searchResultsScreen = createSearchResultsScreen();
+        JPanel checkoutScreen = createCheckoutScreen();
+        JPanel successScreen = createSuccessScreen();
+
+        mainWorkspace.add(searchResultsScreen, "RESULTS");
+        mainWorkspace.add(checkoutScreen, "CHECKOUT");
+        mainWorkspace.add(successScreen, "SUCCESS");
+
+        contentPane.add(mainWorkspace, BorderLayout.CENTER);
+        setContentPane(contentPane);
+
+        updateSearch();
     }
 
-    /**
-     * Obtains user search preferences via interactive JOptionPane dialogues.
-     * @return the constructed DreamLaptop search template.
-     */
-    public static DreamLaptop getFilters() {
-        Map<Filter, Object> filterMap = new LinkedHashMap<>();
-        String[] options = {"Yes", "No", "I don't mind"};
+    public static void main(String[] args) {
+        registry = loadRegistry(filePath);
+        SwingUtilities.invokeLater(() -> {
+            FindLaptop app = new FindLaptop();
+            app.setVisible(true);
+        });
+    }
 
-        LaptopType type = (LaptopType) JOptionPane.showInputDialog(
-                null, 
-                "Which laptop category would you like?", 
-                appName, 
-                JOptionPane.QUESTION_MESSAGE, 
-                icon, 
-                LaptopType.values(), 
-                LaptopType.BURGER
-        );
-        if (type == null) System.exit(0);
+    private JPanel createSidebarPanel() {
+        JPanel sidebar = new JPanel();
+        sidebar.setPreferredSize(new Dimension(340, 1080));
+        sidebar.setBackground(new Color(15, 23, 42));
+        sidebar.setBorder(BorderFactory.createMatteBorder(0, 0, 0, 1, new Color(30, 41, 59)));
+        sidebar.setLayout(new BorderLayout());
+
+        JPanel headerPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 15, 15));
+        headerPanel.setOpaque(false);
+        
+        JLabel logoLabel = new JLabel(logoIcon);
+        headerPanel.add(logoLabel);
+
+        JPanel brandTextPanel = new JPanel(new GridLayout(2, 1));
+        brandTextPanel.setOpaque(false);
+        JLabel brandNameLabel = new JLabel("DREAMFINDER.AI");
+        brandNameLabel.setFont(new Font("SansSerif", Font.BOLD, 18));
+        brandNameLabel.setForeground(Color.WHITE);
+        JLabel brandSubLabel = new JLabel("Premium Matcher v1.0");
+        brandSubLabel.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        brandSubLabel.setForeground(new Color(148, 163, 184));
+        brandTextPanel.add(brandNameLabel);
+        brandTextPanel.add(brandSubLabel);
+        headerPanel.add(brandTextPanel);
+
+        sidebar.add(headerPanel, BorderLayout.NORTH);
+
+        JPanel scrollContent = new JPanel();
+        scrollContent.setBackground(new Color(15, 23, 42));
+        scrollContent.setLayout(new BoxLayout(scrollContent, BoxLayout.Y_AXIS));
+        scrollContent.setBorder(new EmptyBorder(10, 15, 10, 15));
+
+        scrollContent.add(createSidebarHeader("SPECIFICATIONS"));
+
+        categoryCombo = new JComboBox<>(LaptopType.values());
+        styleComboBox(categoryCombo);
+        scrollContent.add(createFormGroup("Laptop Category", categoryCombo));
+
+        Object[] brands = registry.getAllFeatureValues(Filter.BUN).toArray();
+        brandCombo = new JComboBox<>(brands);
+        styleComboBox(brandCombo);
+        scrollContent.add(createFormGroup("Preferred Brand", brandCombo));
+
+        gpuCombo = new JComboBox<>(GPU.values());
+        styleComboBox(gpuCombo);
+        scrollContent.add(createFormGroup("GPU / Processor Family", gpuCombo));
+
+        softwareCombo = new JComboBox<>(Software.values());
+        styleComboBox(softwareCombo);
+        scrollContent.add(createFormGroup("Pre-installed Software", softwareCombo));
+
+        scrollContent.add(Box.createRigidArea(new Dimension(0, 10)));
+        scrollContent.add(createSidebarHeader("HARDWARE PREFERENCES"));
+
+        touchscreenCheck = new JCheckBox("Touchscreen Display");
+        styleCheckBox(touchscreenCheck);
+        scrollContent.add(touchscreenCheck);
+
+        backlitCheck = new JCheckBox("Backlit Keyboard");
+        styleCheckBox(backlitCheck);
+        scrollContent.add(backlitCheck);
+
+        numpadCheck = new JCheckBox("Dedicated Numeric Keypad");
+        styleCheckBox(numpadCheck);
+        scrollContent.add(numpadCheck);
+
+        portableCheck = new JCheckBox("Ultra-Portable Design");
+        styleCheckBox(portableCheck);
+        scrollContent.add(portableCheck);
+
+        scrollContent.add(Box.createRigidArea(new Dimension(0, 10)));
+        scrollContent.add(createSidebarHeader("FILTER HARDWARE TAGS"));
+        featureTagsField = new JTextField("");
+        styleTextField(featureTagsField);
+        scrollContent.add(createFormGroup("Tags (e.g. Slim;RGB;Cooling)", featureTagsField));
+
+        scrollContent.add(Box.createRigidArea(new Dimension(0, 10)));
+        scrollContent.add(createSidebarHeader("BUDGET LIMITS ($)"));
+
+        JPanel budgetPanel = new JPanel(new GridLayout(1, 2, 10, 0));
+        budgetPanel.setOpaque(false);
+        minPriceField = new JTextField("0");
+        styleTextField(minPriceField);
+        maxPriceField = new JTextField("1500");
+        styleTextField(maxPriceField);
+
+        budgetPanel.add(createFormGroup("Min Price", minPriceField));
+        budgetPanel.add(createFormGroup("Max Price", maxPriceField));
+        scrollContent.add(budgetPanel);
+
+        JScrollPane scrollPane = new JScrollPane(scrollContent);
+        scrollPane.setBorder(null);
+        scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+        scrollPane.setBackground(new Color(15, 23, 42));
+        scrollPane.getViewport().setBackground(new Color(15, 23, 42));
+        sidebar.add(scrollPane, BorderLayout.CENTER);
+
+        JPanel actionPanel = new JPanel(new BorderLayout());
+        actionPanel.setOpaque(false);
+        actionPanel.setBorder(new EmptyBorder(15, 15, 15, 15));
+
+        RoundedButton searchBtn = new RoundedButton("APPLY CONFIGURATOR");
+        searchBtn.addActionListener(e -> updateSearch());
+        actionPanel.add(searchBtn, BorderLayout.NORTH);
+
+        RoundedButton closeBtn = new RoundedButton("EXIT FINDER");
+        closeBtn.color1 = new Color(220, 38, 38);
+        closeBtn.color2 = new Color(239, 68, 68);
+        closeBtn.addActionListener(e -> System.exit(0));
+        actionPanel.add(Box.createRigidArea(new Dimension(0, 10)), BorderLayout.CENTER);
+        actionPanel.add(closeBtn, BorderLayout.SOUTH);
+
+        sidebar.add(actionPanel, BorderLayout.SOUTH);
+        return sidebar;
+    }
+
+    private JPanel createSearchResultsScreen() {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBackground(new Color(9, 13, 26));
+        panel.setBorder(new EmptyBorder(30, 40, 30, 40));
+
+        JPanel topHeader = new JPanel(new BorderLayout());
+        topHeader.setOpaque(false);
+
+        matchesHeaderLabel = new JLabel("Found 0 matches for your specifications");
+        matchesHeaderLabel.setFont(new Font("SansSerif", Font.BOLD, 26));
+        matchesHeaderLabel.setForeground(Color.WHITE);
+        topHeader.add(matchesHeaderLabel, BorderLayout.WEST);
+
+        budgetRangeBadge = new JLabel("💳 Middle Budget Range");
+        budgetRangeBadge.setFont(new Font("SansSerif", Font.BOLD, 13));
+        budgetRangeBadge.setForeground(Color.WHITE);
+        budgetRangeBadge.setOpaque(true);
+        budgetRangeBadge.setBackground(new Color(79, 70, 229));
+        budgetRangeBadge.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(99, 102, 241), 1),
+                new EmptyBorder(5, 12, 5, 12)
+        ));
+        topHeader.add(budgetRangeBadge, BorderLayout.EAST);
+
+        panel.add(topHeader, BorderLayout.NORTH);
+
+        resultsGrid = new JPanel();
+        resultsGrid.setBackground(new Color(9, 13, 26));
+        resultsGrid.setLayout(new GridBagLayout());
+
+        JScrollPane scrollPane = new JScrollPane(resultsGrid);
+        scrollPane.setBorder(null);
+        scrollPane.setBackground(new Color(9, 13, 26));
+        scrollPane.getViewport().setBackground(new Color(9, 13, 26));
+        panel.add(scrollPane, BorderLayout.CENTER);
+
+        return panel;
+    }
+
+    private JPanel createCheckoutScreen() {
+        JPanel panel = new JPanel(new GridBagLayout());
+        panel.setBackground(new Color(9, 13, 26));
+
+        RoundedPanel formPanel = new RoundedPanel(new GridBagLayout());
+        formPanel.setPreferredSize(new Dimension(600, 620));
+
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new java.awt.Insets(15, 25, 15, 25);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.weightx = 1.0;
+
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        JLabel title = new JLabel("SaaS Checkout Referral Portal");
+        title.setFont(new Font("SansSerif", Font.BOLD, 28));
+        title.setForeground(Color.WHITE);
+        title.setHorizontalAlignment(SwingConstants.CENTER);
+        formPanel.add(title, gbc);
+
+        gbc.gridy = 1;
+        checkoutProductLabel = new JLabel("Product: Laptop Custom Configuration");
+        checkoutProductLabel.setFont(new Font("SansSerif", Font.PLAIN, 15));
+        checkoutProductLabel.setForeground(new Color(168, 85, 247));
+        checkoutProductLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        formPanel.add(checkoutProductLabel, gbc);
+
+        gbc.gridy = 2;
+        JSeparator sep = new JSeparator();
+        sep.setForeground(new Color(51, 65, 85));
+        formPanel.add(sep, gbc);
+
+        gbc.gridy = 3;
+        checkoutNameField = new JTextField("");
+        styleTextField(checkoutNameField);
+        formPanel.add(createFormGroup("Client Name", checkoutNameField), gbc);
+
+        gbc.gridy = 4;
+        checkoutPhoneField = new JTextField("");
+        styleTextField(checkoutPhoneField);
+        formPanel.add(createFormGroup("10-Digit Contact Phone Number", checkoutPhoneField), gbc);
+
+        gbc.gridy = 5;
+        RoundedButton submitBtn = new RoundedButton("COMPLETE ORDER REGISTRATION");
+        submitBtn.addActionListener(e -> submitActiveCheckout());
+        formPanel.add(submitBtn, gbc);
+
+        gbc.gridy = 6;
+        RoundedButton cancelBtn = new RoundedButton("RETURN TO CONFIGURATOR");
+        cancelBtn.color1 = new Color(71, 85, 105);
+        cancelBtn.color2 = new Color(100, 116, 139);
+        cancelBtn.addActionListener(e -> cardLayout.show(mainWorkspace, "RESULTS"));
+        formPanel.add(cancelBtn, gbc);
+
+        panel.add(formPanel);
+        return panel;
+    }
+
+    private JPanel createSuccessScreen() {
+        JPanel panel = new JPanel(new GridBagLayout());
+        panel.setBackground(new Color(9, 13, 26));
+
+        RoundedPanel messagePanel = new RoundedPanel(new GridBagLayout());
+        messagePanel.setPreferredSize(new Dimension(700, 520));
+
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new java.awt.Insets(12, 30, 12, 30);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.weightx = 1.0;
+
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        JLabel checkIcon = new JLabel("✓");
+        checkIcon.setFont(new Font("SansSerif", Font.BOLD, 82));
+        checkIcon.setForeground(new Color(34, 197, 94));
+        checkIcon.setHorizontalAlignment(SwingConstants.CENTER);
+        messagePanel.add(checkIcon, gbc);
+
+        gbc.gridy = 1;
+        successTitleLabel = new JLabel("Order Submitted Successfully");
+        successTitleLabel.setFont(new Font("SansSerif", Font.BOLD, 26));
+        successTitleLabel.setForeground(Color.WHITE);
+        successTitleLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        messagePanel.add(successTitleLabel, gbc);
+
+        gbc.gridy = 2;
+        successDetailsLabel = new JLabel("Details");
+        successDetailsLabel.setFont(new Font("SansSerif", Font.PLAIN, 15));
+        successDetailsLabel.setForeground(new Color(148, 163, 184));
+        successDetailsLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        messagePanel.add(successDetailsLabel, gbc);
+
+        gbc.gridy = 3;
+        RoundedButton finishBtn = new RoundedButton("RESET MATCHING WORKSPACE");
+        finishBtn.addActionListener(e -> {
+            checkoutNameField.setText("");
+            checkoutPhoneField.setText("");
+            cardLayout.show(mainWorkspace, "RESULTS");
+            updateSearch();
+        });
+        messagePanel.add(finishBtn, gbc);
+
+        panel.add(messagePanel);
+        return panel;
+    }
+
+    private void updateSearch() {
+        Map<Filter, Object> filterMap = new LinkedHashMap<>();
+        
+        LaptopType type = (LaptopType) categoryCombo.getSelectedItem();
         filterMap.put(Filter.TYPE, type);
 
         if (type == LaptopType.BURGER) {
-            Object[] allBrands = registry.getAllFeatureValues(Filter.BUN).toArray();
-            String brandType = (String) JOptionPane.showInputDialog(
-                    null, 
-                    "Please select your preferred brand:", 
-                    appName, 
-                    JOptionPane.QUESTION_MESSAGE, 
-                    icon, 
-                    allBrands, 
-                    ""
-            );
-            if (brandType == null) System.exit(0);
-            if (!brandType.equals(allBrands[allBrands.length - 1])) {
-                filterMap.put(Filter.BUN, brandType);
+            String brand = brandCombo.getSelectedItem().toString();
+            if (!brand.equals("I don't mind")) {
+                filterMap.put(Filter.BUN, brand);
             }
 
-            Set<Software> dreamSoftware = new LinkedHashSet<>();
-            int choosingSoftware = 0;
-            while (choosingSoftware == 0) {
-                Software softChoice = (Software) JOptionPane.showInputDialog(
-                        null, 
-                        "Please select your preferred pre-installed software bundle:", 
-                        appName, 
-                        JOptionPane.QUESTION_MESSAGE, 
-                        icon, 
-                        Software.values(), 
-                        Software.BBQ
-                );
-                if (softChoice == null) System.exit(0);
-                if (softChoice.equals(Software.NA)) {
-                    dreamSoftware = new LinkedHashSet<>();
-                    break;
-                } else {
-                    dreamSoftware.add(softChoice);
-                }
-                choosingSoftware = JOptionPane.showConfirmDialog(
-                        null, 
-                        "Would you like to add another software requirement?", 
-                        appName, 
-                        JOptionPane.YES_NO_OPTION, 
-                        JOptionPane.QUESTION_MESSAGE, 
-                        icon
-                );
-                if (choosingSoftware == 2) System.exit(0);
+            Set<Software> softs = new LinkedHashSet<>();
+            Software selectedSoft = (Software) softwareCombo.getSelectedItem();
+            if (selectedSoft != Software.NA) {
+                softs.add(selectedSoft);
+                filterMap.put(Filter.SAUCE_S, softs);
             }
-            if (!dreamSoftware.isEmpty()) {
-                filterMap.put(Filter.SAUCE_S, dreamSoftware);
-            }
-        }
-
-        if (type == LaptopType.SALAD) {
-            Object[] allFeatures = registry.getAllFeatureValues(Filter.LEAFY_GREENS).toArray();
-            Set<String> dreamFeatures = new LinkedHashSet<>();
-            int choosingFeatures = 0;
-            while (choosingFeatures == 0) {
-                String feature = (String) JOptionPane.showInputDialog(
-                        null, 
-                        "Please select your preferred key hardware feature:", 
-                        appName, 
-                        JOptionPane.QUESTION_MESSAGE, 
-                        icon, 
-                        allFeatures, 
-                        ""
-                );
-                if (feature == null) System.exit(0);
-                if (!feature.equals(allFeatures[allFeatures.length - 1])) {
-                    dreamFeatures.add(feature);
-                } else {
-                    break;
-                }
-                choosingFeatures = JOptionPane.showConfirmDialog(
-                        null, 
-                        "Would you like to add another hardware feature requirement?", 
-                        appName, 
-                        JOptionPane.YES_NO_OPTION, 
-                        JOptionPane.QUESTION_MESSAGE, 
-                        icon
-                );
-                if (choosingFeatures == 2) System.exit(0);
-            }
-            if (!dreamFeatures.isEmpty()) {
-                filterMap.put(Filter.LEAFY_GREENS, dreamFeatures);
-            }
-
-            boolean numpad = false;
-            int numpadSelection = JOptionPane.showOptionDialog(
-                    null, 
-                    "Would you like a dedicated numeric keypad?", 
-                    appName, 
-                    JOptionPane.DEFAULT_OPTION, 
-                    JOptionPane.QUESTION_MESSAGE, 
-                    icon, 
-                    options, 
-                    options[0]
-            );
-            if (numpadSelection == 0) numpad = true;
-            if (numpadSelection == -1) System.exit(0);
-            if (numpadSelection != 2) {
-                filterMap.put(Filter.CUCUMBER, numpad);
-            }
-
-            Dressing dressing = (Dressing) JOptionPane.showInputDialog(
-                    null, 
-                    "Please select your preferred docking station bundle:", 
-                    appName, 
-                    JOptionPane.QUESTION_MESSAGE, 
-                    icon, 
-                    Dressing.values(), 
-                    Dressing.NA
-            );
-            if (dressing == null) System.exit(0);
-            if (!dressing.equals(Dressing.NA)) {
-                filterMap.put(Filter.DRESSING, dressing);
-            }
-        }
-
-        GPU dreamGPU = (GPU) JOptionPane.showInputDialog(
-                null, 
-                "Please select your preferred GPU/Processor family:", 
-                appName, 
-                JOptionPane.QUESTION_MESSAGE, 
-                icon, 
-                GPU.values(), 
-                GPU.RTX4060
-        );
-        if (dreamGPU == null) System.exit(0);
-        if (!dreamGPU.equals(GPU.NA)) {
-            filterMap.put(Filter.MEAT, dreamGPU);
-        }
-
-        boolean touchscreen = false;
-        int touchscreenSelection = JOptionPane.showConfirmDialog(
-                null, 
-                "Would you like a touchscreen display?", 
-                appName, 
-                JOptionPane.YES_NO_OPTION, 
-                JOptionPane.QUESTION_MESSAGE, 
-                icon
-        );
-        if (touchscreenSelection == 0) touchscreen = true;
-        if (touchscreenSelection == -1) System.exit(0);
-        filterMap.put(Filter.CHEESE, touchscreen);
-
-        boolean portable = false;
-        int portableSelection = JOptionPane.showOptionDialog(
-                null, 
-                "Would you like an ultra-portable design?", 
-                appName, 
-                JOptionPane.DEFAULT_OPTION, 
-                JOptionPane.QUESTION_MESSAGE, 
-                icon, 
-                options, 
-                options[0]
-        );
-        if (portableSelection == 0) portable = true;
-        if (portableSelection == -1) System.exit(0);
-        if (portableSelection != 2) {
-            filterMap.put(Filter.TOMATO, portable);
-        }
-
-        boolean backlit = false;
-        int backlitSelection = JOptionPane.showOptionDialog(
-                null, 
-                "Would you like a backlit keyboard?", 
-                appName, 
-                JOptionPane.DEFAULT_OPTION, 
-                JOptionPane.QUESTION_MESSAGE, 
-                icon, 
-                options, 
-                options[0]
-        );
-        if (backlitSelection == 0) backlit = true;
-        if (backlitSelection == -1) System.exit(0);
-        if (backlitSelection != 2) {
-            filterMap.put(Filter.PICKLES, backlit);
-        }
-
-        int minPrice = -1;
-        int maxPrice = -1;
-        while (minPrice < 0) {
-            String userInput = JOptionPane.showInputDialog(
-                    null, 
-                    "Please enter the lowest price limit ($):", 
-                    appName, 
-                    JOptionPane.QUESTION_MESSAGE
-            );
-            if (userInput == null) System.exit(0);
-            try {
-                minPrice = Integer.parseInt(userInput.trim());
-                if (minPrice < 0) {
-                    JOptionPane.showMessageDialog(null, "Price must be >= 0.", appName, JOptionPane.ERROR_MESSAGE);
-                }
-            } catch (NumberFormatException e) {
-                JOptionPane.showMessageDialog(null, "Invalid input. Please enter a valid number.", appName, JOptionPane.ERROR_MESSAGE);
-            }
-        }
-        while (maxPrice < minPrice) {
-            String userInput = JOptionPane.showInputDialog(
-                    null, 
-                    "Please enter the highest price limit ($):", 
-                    appName, 
-                    JOptionPane.QUESTION_MESSAGE
-            );
-            if (userInput == null) System.exit(0);
-            try {
-                maxPrice = Integer.parseInt(userInput.trim());
-                if (maxPrice < minPrice) {
-                    JOptionPane.showMessageDialog(null, "Price must be >= " + minPrice, appName, JOptionPane.ERROR_MESSAGE);
-                }
-            } catch (NumberFormatException e) {
-                JOptionPane.showMessageDialog(null, "Invalid input. Please enter a valid number.", appName, JOptionPane.ERROR_MESSAGE);
-            }
-        }
-        return new DreamLaptop(filterMap, minPrice, maxPrice);
-    }
-
-    /**
-     * Searches and lists the matching items, prompting the user for selection.
-     * @param dreamLaptop search filters.
-     */
-    public static void processSearchResults(DreamLaptop dreamLaptop) {
-        List<Laptop> matching = registry.findMatch(dreamLaptop);
-        Laptop chosenItem = null;
-        if (!matching.isEmpty()) {
-            Map<String, Laptop> options = new LinkedHashMap<>();
-            StringBuilder infoToShow = new StringBuilder("Number of matches: " + matching.size() + "!! The following laptops meet your criteria: \n");
-            for (Laptop match : matching) {
-                infoToShow.append(match.getLaptopInformation());
-                options.put(match.getLaptopName(), match);
-            }
-            String choice = (String) JOptionPane.showInputDialog(
-                    null, 
-                    infoToShow + "\n\nPlease select which laptop you'd like to order:", 
-                    appName, 
-                    JOptionPane.INFORMATION_MESSAGE, 
-                    icon, 
-                    options.keySet().toArray(), 
-                    ""
-            );
-            if (choice == null) System.exit(0);
-            chosenItem = options.get(choice);
         } else {
-            int custom = JOptionPane.showConfirmDialog(
-                    null, 
-                    "Unfortunately none of our catalog models meet your exact criteria :(\n" +
-                    "\tWould you like to place a custom laptop build request?\n\n" +
-                    "**Price will be calculated based on specifications at checkout.**", 
-                    appName, 
-                    JOptionPane.YES_NO_OPTION
-            );
-            if (custom == 0) {
-                chosenItem = new Laptop(dreamLaptop);
-            } else {
-                System.exit(0);
+            Set<String> leafyGreens = new LinkedHashSet<>();
+            String rawTags = featureTagsField.getText().trim();
+            if (!rawTags.isEmpty()) {
+                for (String t : rawTags.split(";")) {
+                    if (!t.strip().isEmpty()) {
+                        leafyGreens.add(t.strip());
+                    }
+                }
+            }
+            if (!leafyGreens.isEmpty()) {
+                filterMap.put(Filter.LEAFY_GREENS, leafyGreens);
+            }
+
+            if (numpadCheck.isSelected()) {
+                filterMap.put(Filter.CUCUMBER, true);
             }
         }
-        submitOrder(getUserContactInfo(), chosenItem);
-        JOptionPane.showMessageDialog(
-                null, 
-                "Thank you! Your laptop order has been submitted.\n" +
-                "Our technician will contact you shortly...", 
-                appName, 
-                JOptionPane.INFORMATION_MESSAGE
-        );
+
+        GPU gpu = (GPU) gpuCombo.getSelectedItem();
+        if (gpu != GPU.NA) {
+            filterMap.put(Filter.MEAT, gpu);
+        }
+
+        if (touchscreenCheck.isSelected()) {
+            filterMap.put(Filter.CHEESE, true);
+        }
+        if (backlitCheck.isSelected()) {
+            filterMap.put(Filter.PICKLES, true);
+        }
+        if (portableCheck.isSelected()) {
+            filterMap.put(Filter.TOMATO, true);
+        }
+
+        int minPrice = 0;
+        int maxPrice = 1500;
+        try {
+            minPrice = Integer.parseInt(minPriceField.getText().trim());
+        } catch (NumberFormatException e) {
+            minPriceField.setText("0");
+        }
+        try {
+            maxPrice = Integer.parseInt(maxPriceField.getText().trim());
+        } catch (NumberFormatException e) {
+            maxPriceField.setText("1500");
+        }
+
+        activeDreamQuery = new DreamLaptop(filterMap, minPrice, maxPrice);
+
+        if (maxPrice < 100) {
+            budgetRangeBadge.setText("⚠️ Lower Budget Range Referral Active");
+            budgetRangeBadge.setBackground(new Color(220, 38, 38));
+            matchesHeaderLabel.setText("Lower Range Special Support Referral");
+            showLowerRangeReferralView();
+            return;
+        }
+
+        if (maxPrice >= 100 && maxPrice <= 500) {
+            budgetRangeBadge.setText("💳 Middle Budget Range ($100 - $500)");
+            budgetRangeBadge.setBackground(new Color(37, 99, 235));
+        } else if (maxPrice >= 501 && maxPrice <= 1000) {
+            budgetRangeBadge.setText("💎 High Budget Range ($501 - $1000)");
+            budgetRangeBadge.setBackground(new Color(147, 51, 234));
+        } else {
+            budgetRangeBadge.setText("👑 Premium Budget Range (> $1000)");
+            budgetRangeBadge.setBackground(new Color(5, 150, 105));
+        }
+
+        List<Laptop> matches = registry.findMatch(activeDreamQuery);
+        matchesHeaderLabel.setText("Found " + matches.size() + " matches for your specifications");
+
+        resultsGrid.removeAll();
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.weightx = 1.0;
+        gbc.insets = new java.awt.Insets(10, 0, 10, 0);
+        gbc.gridx = 0;
+
+        int row = 0;
+        if (!matches.isEmpty()) {
+            for (Laptop match : matches) {
+                gbc.gridy = row++;
+                resultsGrid.add(createLaptopCard(match), gbc);
+            }
+        } else {
+            gbc.gridy = row++;
+            resultsGrid.add(createEmptyStateCard(), gbc);
+        }
+
+        resultsGrid.revalidate();
+        resultsGrid.repaint();
+        cardLayout.show(mainWorkspace, "RESULTS");
     }
 
-    /**
-     * Prompts name and validated phone number.
-     * @return Customer client record.
-     */
-    public static Client getUserContactInfo() {
-        String name = JOptionPane.showInputDialog(null, "Please enter a name for the order.", appName, JOptionPane.QUESTION_MESSAGE);
-        if (name == null) System.exit(0);
+    private void showLowerRangeReferralView() {
+        resultsGrid.removeAll();
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.weightx = 1.0;
+        gbc.gridy = 0;
+        gbc.gridx = 0;
+
+        RoundedPanel alertPanel = new RoundedPanel(new GridBagLayout());
+        alertPanel.setPreferredSize(new Dimension(800, 480));
+
+        GridBagConstraints subGbc = new GridBagConstraints();
+        subGbc.insets = new java.awt.Insets(15, 30, 15, 30);
+        subGbc.fill = GridBagConstraints.HORIZONTAL;
+        subGbc.weightx = 1.0;
+
+        subGbc.gridx = 0;
+        subGbc.gridy = 0;
+        JLabel title = new JLabel("⚠️ Special Budget Assist referral Required");
+        title.setFont(new Font("SansSerif", Font.BOLD, 24));
+        title.setForeground(new Color(239, 68, 68));
+        title.setHorizontalAlignment(SwingConstants.CENTER);
+        alertPanel.add(title, subGbc);
+
+        subGbc.gridy = 1;
+        JLabel desc = new JLabel("<html><center>Since your budget maximum is in our <b>Lower Range (< $100)</b>, we do not inventory catalog models at this price level.<br>However, our technician will contact you directly to evaluate refurbished stocks or apply UNE student support subsidies!</center></html>");
+        desc.setFont(new Font("SansSerif", Font.PLAIN, 15));
+        desc.setForeground(new Color(226, 232, 240));
+        desc.setHorizontalAlignment(SwingConstants.CENTER);
+        alertPanel.add(desc, subGbc);
+
+        subGbc.gridy = 2;
+        RoundedButton callBtn = new RoundedButton("SUBMIT HARDWARE TECHNICIAN REFERRAL");
+        callBtn.color1 = new Color(220, 38, 38);
+        callBtn.color2 = new Color(239, 68, 68);
+        callBtn.addActionListener(e -> {
+            isCustomCheckout = false;
+            isLowerRangeCheckout = true;
+            checkoutProductLabel.setText("Service: Lower Budget Range Technician Call Request");
+            checkoutProductLabel.setForeground(new Color(239, 68, 68));
+            cardLayout.show(mainWorkspace, "CHECKOUT");
+        });
+        alertPanel.add(callBtn, subGbc);
+
+        resultsGrid.add(alertPanel, gbc);
+        resultsGrid.revalidate();
+        resultsGrid.repaint();
+        cardLayout.show(mainWorkspace, "RESULTS");
+    }
+
+    private JPanel createLaptopCard(Laptop laptop) {
+        RoundedPanel card = new RoundedPanel(new BorderLayout(25, 0));
+        card.setPreferredSize(new Dimension(850, 180));
+        card.setBorder(new EmptyBorder(15, 20, 15, 20));
+
+        JPanel details = new JPanel(new GridLayout(3, 1, 0, 5));
+        details.setOpaque(false);
+
+        JPanel titleBar = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
+        titleBar.setOpaque(false);
+        JLabel name = new JLabel(laptop.getLaptopName());
+        name.setFont(new Font("SansSerif", Font.BOLD, 19));
+        name.setForeground(Color.WHITE);
+        titleBar.add(name);
+
+        JLabel idBadge = new JLabel("ID: " + laptop.getLaptopIdentifier());
+        idBadge.setFont(new Font("SansSerif", Font.BOLD, 11));
+        idBadge.setForeground(new Color(99, 102, 241));
+        idBadge.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(99, 102, 241), 1),
+                new EmptyBorder(2, 6, 2, 6)
+        ));
+        titleBar.add(idBadge);
+        details.add(titleBar);
+
+        JLabel desc = new JLabel(laptop.getDescription());
+        desc.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        desc.setForeground(new Color(148, 163, 184));
+        details.add(desc);
+
+        JPanel specsPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        specsPanel.setOpaque(false);
+        
+        specsPanel.add(createSpecBadge(laptop.getDreamLaptop().getFilter(Filter.TYPE).toString()));
+        if (laptop.getDreamLaptop().getAllFilters().containsKey(Filter.BUN)) {
+            specsPanel.add(createSpecBadge(laptop.getDreamLaptop().getFilter(Filter.BUN).toString()));
+        }
+        if (laptop.getDreamLaptop().getAllFilters().containsKey(Filter.MEAT)) {
+            specsPanel.add(createSpecBadge(laptop.getDreamLaptop().getFilter(Filter.MEAT).toString()));
+        }
+        details.add(specsPanel);
+
+        card.add(details, BorderLayout.CENTER);
+
+        JPanel actions = new JPanel(new GridBagLayout());
+        actions.setOpaque(false);
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        gbc.weightx = 1.0;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+
+        JLabel price = new JLabel("$" + String.format("%.2f", laptop.getPrice()));
+        price.setFont(new Font("SansSerif", Font.BOLD, 24));
+        price.setForeground(new Color(34, 197, 94));
+        price.setHorizontalAlignment(SwingConstants.RIGHT);
+        actions.add(price, gbc);
+
+        gbc.gridy = 1;
+        gbc.insets = new java.awt.Insets(15, 0, 0, 0);
+        RoundedButton orderBtn = new RoundedButton("ORDER NOW");
+        orderBtn.setPreferredSize(new Dimension(140, 38));
+        orderBtn.addActionListener(e -> {
+            activeSelectedLaptop = laptop;
+            isCustomCheckout = false;
+            isLowerRangeCheckout = false;
+            checkoutProductLabel.setText("Product: " + laptop.getLaptopName() + " (" + laptop.getLaptopIdentifier() + ")");
+            checkoutProductLabel.setForeground(new Color(6, 182, 212));
+            cardLayout.show(mainWorkspace, "CHECKOUT");
+        });
+        actions.add(orderBtn, gbc);
+
+        card.add(actions, BorderLayout.EAST);
+        return card;
+    }
+
+    private JPanel createEmptyStateCard() {
+        RoundedPanel card = new RoundedPanel(new GridBagLayout());
+        card.setPreferredSize(new Dimension(850, 240));
+
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new java.awt.Insets(10, 25, 10, 25);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.weightx = 1.0;
+
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        JLabel title = new JLabel("🔍 No Catalog Matches Found");
+        title.setFont(new Font("SansSerif", Font.BOLD, 22));
+        title.setForeground(new Color(239, 68, 68));
+        title.setHorizontalAlignment(SwingConstants.CENTER);
+        card.add(title, gbc);
+
+        gbc.gridy = 1;
+        JLabel desc = new JLabel("Unfortunately, none of our current catalog models match your specifications. Custom orders are built in our UNE laboratory.");
+        desc.setFont(new Font("SansSerif", Font.PLAIN, 15));
+        desc.setForeground(new Color(148, 163, 184));
+        desc.setHorizontalAlignment(SwingConstants.CENTER);
+        card.add(desc, gbc);
+
+        gbc.gridy = 2;
+        RoundedButton customBtn = new RoundedButton("REQUEST CUSTOM BUILT LAPTOP");
+        customBtn.color1 = new Color(147, 51, 234);
+        customBtn.color2 = new Color(168, 85, 247);
+        customBtn.addActionListener(e -> {
+            activeSelectedLaptop = new Laptop(activeDreamQuery);
+            isCustomCheckout = true;
+            isLowerRangeCheckout = false;
+            checkoutProductLabel.setText("Service: Custom Laptop Build Request");
+            checkoutProductLabel.setForeground(new Color(168, 85, 247));
+            cardLayout.show(mainWorkspace, "CHECKOUT");
+        });
+        card.add(customBtn, gbc);
+
+        return card;
+    }
+
+    private void submitActiveCheckout() {
+        String name = checkoutNameField.getText().trim();
+        if (name.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Please enter a client name.", appName, JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        String phoneStr = checkoutPhoneField.getText().trim();
         long phoneNumber = 0;
-        while (phoneNumber == 0) {
-            String userInput = JOptionPane.showInputDialog(null, "Please enter your 10-digit phone number.", appName, JOptionPane.QUESTION_MESSAGE);
-            if (userInput == null) System.exit(0);
-            try {
-                phoneNumber = Long.parseLong(userInput.trim());
-            } catch (NumberFormatException e) {
-                JOptionPane.showMessageDialog(null, "Invalid entry. Phone number must be numeric.", appName, JOptionPane.ERROR_MESSAGE);
-                continue;
-            }
-            int length = String.valueOf(phoneNumber).length();
-            if (length != 9) {
-                phoneNumber = 0;
-                JOptionPane.showMessageDialog(null, "Invalid entry. Enter a 10-digit phone number in format 0412 123 345.", appName, JOptionPane.ERROR_MESSAGE);
-            }
+        try {
+            phoneNumber = Long.parseLong(phoneStr);
+        } catch (NumberFormatException e) {
+            JOptionPane.showMessageDialog(this, "Invalid entry. Phone number must be numeric.", appName, JOptionPane.ERROR_MESSAGE);
+            return;
         }
-        return new Client(name, phoneNumber);
+
+        int length = String.valueOf(phoneNumber).length();
+        if (length != 9) {
+            JOptionPane.showMessageDialog(this, "Invalid entry. Enter a 10-digit phone number in format 0412 123 345.", appName, JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        Client client = new Client(name, phoneNumber);
+
+        if (isLowerRangeCheckout) {
+            submitLowerRangeInquiry(client, activeDreamQuery);
+        } else {
+            submitOrder(client, activeSelectedLaptop);
+        }
     }
 
-    /**
-     * Writes order files to disk.
-     * @param client customer info.
-     * @param laptop laptop ordered.
-     */
-    public static void submitOrder(Client client, Laptop laptop) {
+    private void submitOrder(Client client, Laptop laptop) {
         String safeName = client.name().replace(" ", "_");
-        String filePath = safeName + "_" + laptop.getLaptopIdentifier() + ".txt";
-        Path path = Path.of(filePath);
+        String filename = safeName + "_" + laptop.getLaptopIdentifier() + ".txt";
+        Path path = Path.of(filename);
+
         String lineToWrite = "Order details:\n\t" +
                 "Name: " + client.name() +
                 " (0" + client.phoneNumber() + ")";
@@ -360,17 +675,93 @@ public class FindLaptop {
 
         try {
             Files.writeString(path, lineToWrite);
+            
+            successTitleLabel.setText("Order Registered Successfully");
+            successDetailsLabel.setText("<html><center>Order persistent file created at:<br><b>" + path.toAbsolutePath() + "</b><br><br>Our UNE hardware technicians will assemble your specifications and contact you shortly.</center></html>");
+            cardLayout.show(mainWorkspace, "SUCCESS");
         } catch (IOException io) {
-            System.out.println("Order could not be placed. \nError message: " + io.getMessage());
-            System.exit(0);
+            JOptionPane.showMessageDialog(this, "Error writing order file: " + io.getMessage(), appName, JOptionPane.ERROR_MESSAGE);
         }
     }
 
-    /**
-     * Parses the CSV dataset file.
-     * @param filePath path to database.
-     * @return populated registry.
-     */
+    private void submitLowerRangeInquiry(Client client, DreamLaptop query) {
+        String safeName = client.name().replace(" ", "_");
+        String filename = safeName + "_lower_range.txt";
+        Path path = Path.of(filename);
+
+        String lineToWrite = "Lower Range Budget Inquiry:\n\t" +
+                "Name: " + client.name() +
+                "\n\tPhone: 0" + client.phoneNumber() +
+                "\n\tBudget Limit Range: $" + query.getMinPrice() + " - $" + query.getMaxPrice() +
+                "\n\nRequested Specs:\n" + query.getInfo() +
+                "\n\n* Technician Assignment: Assessor/Technician will call this client within 24 hours to match lower-range/refurbished/student discount machines.";
+
+        try {
+            Files.writeString(path, lineToWrite);
+            
+            successTitleLabel.setText("Technician Call Scheduled");
+            successDetailsLabel.setText("<html><center>Inquiry referral file created at:<br><b>" + path.toAbsolutePath() + "</b><br><br>A certified technician will call you directly at <b>0" + client.phoneNumber() + "</b> to assist with budget options!</center></html>");
+            cardLayout.show(mainWorkspace, "SUCCESS");
+        } catch (IOException io) {
+            JOptionPane.showMessageDialog(this, "Error writing inquiry file: " + io.getMessage(), appName, JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private JLabel createSpecBadge(String text) {
+        JLabel badge = new JLabel(text);
+        badge.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        badge.setForeground(new Color(203, 213, 225));
+        badge.setOpaque(true);
+        badge.setBackground(new Color(51, 65, 85));
+        badge.setBorder(new EmptyBorder(3, 8, 3, 8));
+        return badge;
+    }
+
+    private JLabel createSidebarHeader(String text) {
+        JLabel label = new JLabel(text);
+        label.setFont(new Font("SansSerif", Font.BOLD, 12));
+        label.setForeground(new Color(99, 102, 241));
+        label.setBorder(new EmptyBorder(15, 0, 5, 0));
+        return label;
+    }
+
+    private JPanel createFormGroup(String labelText, JComponent field) {
+        JPanel panel = new JPanel(new BorderLayout(0, 5));
+        panel.setOpaque(false);
+        panel.setBorder(new EmptyBorder(5, 0, 5, 0));
+        JLabel label = new JLabel(labelText);
+        label.setFont(new Font("SansSerif", Font.PLAIN, 13));
+        label.setForeground(new Color(226, 232, 240));
+        panel.add(label, BorderLayout.NORTH);
+        panel.add(field, BorderLayout.CENTER);
+        return panel;
+    }
+
+    private void styleComboBox(JComboBox<?> combo) {
+        combo.setBackground(new Color(30, 41, 59));
+        combo.setForeground(Color.WHITE);
+        combo.setFont(new Font("SansSerif", Font.PLAIN, 13));
+        combo.setBorder(BorderFactory.createLineBorder(new Color(71, 85, 105)));
+    }
+
+    private void styleCheckBox(JCheckBox check) {
+        check.setOpaque(false);
+        check.setForeground(new Color(226, 232, 240));
+        check.setFont(new Font("SansSerif", Font.PLAIN, 13));
+        check.setBorder(new EmptyBorder(5, 0, 5, 0));
+    }
+
+    private void styleTextField(JTextField field) {
+        field.setBackground(new Color(30, 41, 59));
+        field.setForeground(Color.WHITE);
+        field.setCaretColor(Color.WHITE);
+        field.setFont(new Font("SansSerif", Font.PLAIN, 13));
+        field.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(71, 85, 105)),
+                new EmptyBorder(6, 10, 6, 10)
+        ));
+    }
+
     public static LaptopRegistry loadRegistry(String filePath) {
         LaptopRegistry registry = new LaptopRegistry();
         Path path = Path.of(filePath);
@@ -419,7 +810,7 @@ public class FindLaptop {
             try {
                 type = LaptopType.valueOf(singularInfo[1].toUpperCase().strip());
             } catch (IllegalArgumentException e) {
-                System.out.println("Error in file. Type data could not be parsed on line " + (i + 1) + ". \nError message: " + e.getMessage());
+                System.out.println("Error parsing type data on line " + (i + 1));
                 System.exit(0);
             }
 
@@ -429,7 +820,7 @@ public class FindLaptop {
             try {
                 price = Double.parseDouble(singularInfo[3].strip());
             } catch (NumberFormatException n) {
-                System.out.println("Error in file. Price could not be parsed on line " + (i + 1) + ". \nError message: " + n.getMessage());
+                System.out.println("Error parsing price data on line " + (i + 1));
                 System.exit(0);
             }
 
@@ -438,7 +829,7 @@ public class FindLaptop {
             try {
                 brand = Brand.valueOf(brandName);
             } catch (IllegalArgumentException e) {
-                System.out.println("Error in file. Brand data could not be parsed on line " + (i + 1) + ". \nError message: " + e.getMessage());
+                System.out.println("Error parsing brand data on line " + (i + 1));
                 System.exit(0);
             }
 
@@ -446,7 +837,7 @@ public class FindLaptop {
             try {
                 gpu = GPU.valueOf(singularInfo[5].toUpperCase().strip());
             } catch (IllegalArgumentException e) {
-                System.out.println("Error in file. GPU/Processor data could not be parsed on line " + (i + 1) + ". \nError message: " + e.getMessage());
+                System.out.println("Error parsing GPU data on line " + (i + 1));
                 System.exit(0);
             }
 
@@ -470,7 +861,7 @@ public class FindLaptop {
             try {
                 dressing = Dressing.valueOf(singularInfo[10].toUpperCase().strip());
             } catch (IllegalArgumentException e) {
-                System.out.println("Error in file. Dressing data could not be parsed on line " + (i + 1) + ". \nError message: " + e.getMessage());
+                System.out.println("Error parsing dressing data on line " + (i + 1));
                 System.exit(0);
             }
 
@@ -487,7 +878,7 @@ public class FindLaptop {
                 try {
                     soft = Software.valueOf(s.toUpperCase().strip());
                 } catch (IllegalArgumentException e) {
-                    System.out.println("Error in file. Software data could not be parsed on line " + (i + 1) + ". \nError message: " + e.getMessage());
+                    System.out.println("Error parsing software data on line " + (i + 1));
                     System.exit(0);
                 }
                 extras.add(soft);
@@ -514,5 +905,74 @@ public class FindLaptop {
             registry.addLaptop(laptop);
         }
         return registry;
+    }
+
+    private static class RoundedPanel extends JPanel {
+        private final int cornerRadius = 15;
+        private final Color backgroundColor = new Color(30, 41, 59, 180);
+        private final Color borderColor = new Color(51, 65, 85);
+
+        public RoundedPanel(LayoutManager layout) {
+            super(layout);
+            setOpaque(false);
+        }
+
+        @Override
+        protected void paintComponent(Graphics g) {
+            super.paintComponent(g);
+            Dimension arcs = new Dimension(cornerRadius, cornerRadius);
+            int width = getWidth();
+            int height = getHeight();
+            Graphics2D graphics = (Graphics2D) g;
+            graphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+            graphics.setColor(backgroundColor);
+            graphics.fillRoundRect(0, 0, width - 1, height - 1, arcs.width, arcs.height);
+
+            graphics.setColor(borderColor);
+            graphics.drawRoundRect(0, 0, width - 1, height - 1, arcs.width, arcs.height);
+        }
+    }
+
+    private static class RoundedButton extends JButton {
+        public Color color1 = new Color(79, 70, 229);
+        public Color color2 = new Color(99, 102, 241);
+
+        public RoundedButton(String text) {
+            super(text);
+            setContentAreaFilled(false);
+            setFocusPainted(false);
+            setBorderPainted(false);
+            setForeground(Color.WHITE);
+            setFont(new Font("SansSerif", Font.BOLD, 13));
+            setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+            
+            addMouseListener(new MouseAdapter() {
+                @Override
+                public void mouseEntered(MouseEvent e) {
+                    color1 = color1.brighter();
+                    color2 = color2.brighter();
+                    repaint();
+                }
+
+                @Override
+                public void mouseExited(MouseEvent e) {
+                    color1 = color1.darker();
+                    color2 = color2.darker();
+                    repaint();
+                }
+            });
+        }
+
+        @Override
+        protected void paintComponent(Graphics g) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            GradientPaint gp = new GradientPaint(0, 0, color1, 0, getHeight(), color2);
+            g2.setPaint(gp);
+            g2.fillRoundRect(0, 0, getWidth(), getHeight(), 12, 12);
+            g2.dispose();
+            super.paintComponent(g);
+        }
     }
 }
