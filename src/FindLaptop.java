@@ -10,9 +10,9 @@ import java.util.*;
 import java.util.List;
 
 public class FindLaptop extends JFrame {
-    private static final String filePath = "laptops.txt";
+    private static final String filePath = "resources/laptops.txt";
     private static final String appName = "Dream Laptop Finder";
-    private static final Icon logoIcon = new ImageIcon("./byte_chew_small.png");
+    private static final Icon logoIcon = new ImageIcon("resources/byte_chew_small.png");
     private static LaptopRegistry registry;
 
     private JComboBox<LaptopType> categoryCombo;

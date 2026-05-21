@@ -4,10 +4,20 @@ Author: Partha Saha
 
 ## How to Run
 
-1. Open project in IntelliJ or VS Code.
-2. Ensure all .java files and laptops.txt are in the same folder.
-3. Compile using Java 25.
-4. Run FindLaptop.java.
+1. **Compile the application**:
+   ```bash
+   mkdir -p bin && javac -d bin src/*.java
+   ```
+2. **Run the application**:
+   ```bash
+   java -cp bin FindLaptop
+   ```
+
+## Directory Structure
+- `src/`: Java source files.
+- `resources/`: Application resources (e.g. database, images).
+- `orders/`: Location where client orders and technician inquiries are saved.
+- `bin/`: Compiled class files (ignored by git).
 
 ## Features
 
